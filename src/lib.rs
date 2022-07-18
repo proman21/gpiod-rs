@@ -11,7 +11,7 @@ mod utils;
 use std::{
     collections::HashMap,
     fmt,
-    fs::{symlink_metadata, File, OpenOptions},
+    fs::{canonicalize, symlink_metadata, File, OpenOptions},
     io,
     io::Read,
     os::unix::{
@@ -435,7 +435,7 @@ impl Chip {
     pub fn new(path: impl AsRef<Path>) -> io::Result<Chip> {
         let dev = OpenOptions::new().read(true).write(true).open(&path)?;
 
-        Chip::is_gpiochip_cdev(path)?;
+        Chip::check_gpiochip_device(path)?;
 
         let mut info = raw::GpioChipInfo::default();
 
@@ -449,61 +449,35 @@ impl Chip {
         })
     }
 
-    fn is_gpiochip_cdev(path: impl AsRef<Path>) -> io::Result<bool> {
-        const LINE_FEED: u8 = 10;
+    fn check_gpiochip_device(path: impl AsRef<Path>) -> io::Result<()> {
+        let path = path.as_ref();
 
-        /*rv = lstat(path, &statbuf);*/
-        let file_metadata = symlink_metadata(&path)?;
+        let metadata = symlink_metadata(&path)?;
 
-        /*if (!S_ISCHR(statbuf.st_mode)) */
-        if !file_metadata.file_type().is_char_device() {
+        /* Is it a character device? */
+        if !metadata.file_type().is_char_device() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "File is not character device",
             ));
         }
 
-        /*basename(pathcpy);*/
-        let basename = path.as_ref().file_name().unwrap();
+        let rdev = metadata.rdev();
 
-        let sysfs = format!("/sys/bus/gpio/devices/{}/dev", basename.to_str().unwrap());
-
-        /*if (access(sysfsp, R_OK) != 0)*/
-        if !Path::new(&sysfs).is_file()
-        /*I check if it is a file instead of read access done in libgpiod */
+        /* Is the device associated with the GPIO subsystem? */
+        if canonicalize(format!(
+            "/sys/dev/char/{}:{}/subsystem",
+            major(rdev),
+            minor(rdev)
+        ))? != Path::new("/sys/bus/gpio")
         {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
-                "Matching GPIO in sys not found",
+                "Character device is not a GPIO",
             ));
         }
 
-        let mut sysfs_rdev: [u8; 16] = [0; 16];
-        {
-            let mut fd = OpenOptions::new().read(true).open(sysfs)?;
-
-            fd.read(&mut sysfs_rdev)?; /*Ignoring any error for now*/
-        }
-
-        let lf_pos = sysfs_rdev
-            .iter()
-            .position(|&x| x == LINE_FEED)
-            .unwrap_or(sysfs_rdev.len() - 1);
-
-        let file_rdev = format!(
-            "{}:{}",
-            file_metadata.rdev() >> 8,
-            file_metadata.rdev() & 0xFF
-        );
-
-        if safe_get_str(&sysfs_rdev[0..lf_pos - 1])? == file_rdev {
-            return Err(io::Error::new(
-                io::ErrorKind::Other,
-                "Unmatched device versions",
-            ));
-        }
-
-        Ok(true)
+        Ok(())
     }
 
     /// Request the info of a specific GPIO line.

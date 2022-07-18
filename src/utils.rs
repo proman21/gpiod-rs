@@ -62,3 +62,21 @@ pub fn safe_get_str(src: &[u8]) -> io::Result<&str> {
         .map_err(|_| invalid_data())?
         .trim_end_matches('\0'))
 }
+
+/// This definition from libc
+#[inline(always)]
+pub fn major(dev: u64) -> u64 {
+    let mut major = 0;
+    major |= (dev & 0x00000000000fff00) >> 8;
+    major |= (dev & 0xfffff00000000000) >> 32;
+    major
+}
+
+/// This definition from libc
+#[inline(always)]
+pub fn minor(dev: u64) -> u64 {
+    let mut minor = 0;
+    minor |= dev & 0x00000000000000ff;
+    minor |= (dev & 0x00000ffffff00000) >> 12;
+    minor
+}
