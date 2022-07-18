@@ -23,7 +23,9 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-pub use types::{Active, Bias, BitId, Direction, Drive, Edge, EdgeDetect, Event, LineId, Values};
+pub use types::{
+    Active, Bias, BitId, Direction, Drive, Edge, EdgeDetect, Event, LineId, Values, ValuesIter,
+};
 use utils::*;
 
 macro_rules! unsafe_call {

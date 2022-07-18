@@ -16,34 +16,6 @@ pub struct Values {
     pub mask: u64,
 }
 
-macro_rules! values_conv {
-    ($($type:ty,)*) => {
-        $(
-            impl From<$type> for Values {
-                fn from(bits: $type) -> Self {
-                    Self {
-                        bits: bits as _,
-                        mask: <$type>::MAX as _,
-                    }
-                }
-            }
-
-            impl From<Values> for $type {
-                fn from(values: Values) -> Self {
-                    values.bits as _
-                }
-            }
-        )*
-    };
-}
-
-values_conv! {
-    u8,
-    u16,
-    u32,
-    u64,
-}
-
 impl Values {
     /// Get the value of specific bit
     ///
@@ -84,7 +56,7 @@ impl Values {
 
 impl fmt::Display for Values {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let max = (64 - (self.bits & self.mask).leading_zeros() as u8).max(1);
+        let max = (64u8 - self.mask.leading_zeros() as u8).max(1);
         "0b".fmt(f)?;
         for i in (0..max).rev() {
             match self.get(i) {
@@ -127,6 +99,115 @@ impl str::FromStr for Values {
         Ok(r)
     }
 }
+
+macro_rules! values_conv {
+    ($($type:ty,)*) => {
+        $(
+            impl From<$type> for Values {
+                fn from(bits: $type) -> Self {
+                    Self {
+                        bits: bits as _,
+                        mask: <$type>::MAX as _,
+                    }
+                }
+            }
+
+            impl From<Values> for $type {
+                fn from(values: Values) -> Self {
+                    (values.bits & values.mask) as _
+                }
+            }
+        )*
+    };
+}
+
+values_conv! {
+    u8,
+    u16,
+    u32,
+    u64,
+}
+
+impl core::iter::FromIterator<bool> for Values {
+    fn from_iter<I: IntoIterator<Item = bool>>(bits: I) -> Self {
+        let mut values = Self::default();
+        let mut i = 64;
+        for bit in bits {
+            i -= 1;
+            let mask = 1 << i;
+            if bit {
+                values.bits |= mask;
+            }
+            values.mask |= mask;
+            if i == 0 {
+                break;
+            }
+        }
+        if i > 0 {
+            values.bits >>= i;
+            values.mask >>= i;
+        }
+        values
+    }
+}
+
+impl core::iter::IntoIterator for Values {
+    type Item = bool;
+    type IntoIter = ValuesIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ValuesIter {
+            bits: self.bits,
+            i: 64u8 - self.mask.leading_zeros() as u8,
+        }
+    }
+}
+
+/// Iterator over line values
+#[derive(Debug, Clone, Copy)]
+pub struct ValuesIter {
+    bits: u64,
+    i: u8,
+}
+
+impl core::iter::Iterator for ValuesIter {
+    type Item = bool;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.i == 0 {
+            None
+        } else {
+            self.i -= 1;
+            Some(self.bits & (1 << self.i) != 0)
+        }
+    }
+}
+
+/*
+impl<T: AsRef<[bool]>> TryFrom<T> for Values {
+    fn from(bits: T) -> Self {
+        let bits = bits.as_ref();
+        let mut values = Self::default();
+        for i in 0..bits.len().min(64) {
+            values.set(i as _, bits[63 - i]);
+        }
+        values
+    }
+}
+
+impl From<Values> for Vec<bool> {
+    fn from(values: Values) -> Self {
+        let mut i = 64u8 - values.mask.leading_zeros() as u8;
+        let mut bits = Vec::with_capacity(i as _);
+        let raw = values.bits & values.mask;
+        while i > 0 {
+            bits.push(raw & (1 << i) != 0);
+            i -= 1;
+        }
+        bits
+    }
+}
+*/
 
 /// Direction of a GPIO line
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -434,7 +515,16 @@ mod test {
 
     #[test]
     fn format_values() {
-        assert_eq!(Values::from(0b1000u8).to_string(), "0b1000");
+        assert_eq!(Values::from(0b1000u8).to_string(), "0b00001000");
+
+        assert_eq!(
+            Values {
+                bits: 0b1000,
+                mask: 0b1111,
+            }
+            .to_string(),
+            "0b1000"
+        );
 
         assert_eq!(
             Values {
@@ -442,7 +532,16 @@ mod test {
                 mask: 0b0111,
             }
             .to_string(),
-            "0b11"
+            "0b011"
+        );
+
+        assert_eq!(
+            Values {
+                bits: 0b0011,
+                mask: 0b1111,
+            }
+            .to_string(),
+            "0b0011"
         );
 
         assert_eq!(
@@ -451,7 +550,7 @@ mod test {
                 mask: 0b00011,
             }
             .to_string(),
-            "0b0"
+            "0b00"
         );
 
         assert_eq!(
@@ -471,6 +570,14 @@ mod test {
             Values {
                 bits: 0b0110,
                 mask: 0b1111,
+            }
+        );
+
+        assert_eq!(
+            "00110".parse::<Values>().unwrap(),
+            Values {
+                bits: 0b00110,
+                mask: 0b11111,
             }
         );
 
@@ -532,5 +639,47 @@ mod test {
         );
 
         assert!("0b10xy".parse::<Values>().is_err());
+    }
+
+    #[test]
+    fn values_from_iter() {
+        assert_eq!(
+            Values::from_iter([true, false, false, true]),
+            Values {
+                bits: 0b1001,
+                mask: 0b1111,
+            }
+        );
+
+        assert_eq!(
+            Values::from_iter([false, false, true, true, true, false]),
+            Values {
+                bits: 0b001110,
+                mask: 0b111111,
+            }
+        );
+    }
+
+    #[test]
+    fn values_into_iter() {
+        assert_eq!(
+            Values {
+                bits: 0b1001,
+                mask: 0b1111,
+            }
+            .into_iter()
+            .collect::<Vec<_>>(),
+            [true, false, false, true]
+        );
+
+        assert_eq!(
+            Values {
+                bits: 0b001110,
+                mask: 0b111111,
+            }
+            .into_iter()
+            .collect::<Vec<_>>(),
+            [false, false, true, true, true, false]
+        );
     }
 }
