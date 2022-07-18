@@ -433,9 +433,11 @@ impl fmt::Display for Chip {
 impl Chip {
     /// Create a new GPIO chip interface using path
     pub fn new(path: impl AsRef<Path>) -> io::Result<Chip> {
-        let dev = OpenOptions::new().read(true).write(true).open(&path)?;
+        let path = path.as_ref();
 
-        Chip::check_gpiochip_device(path)?;
+        let dev = OpenOptions::new().read(true).write(true).open(path)?;
+
+        Chip::check_device(path)?;
 
         let mut info = raw::GpioChipInfo::default();
 
@@ -449,9 +451,26 @@ impl Chip {
         })
     }
 
-    fn check_gpiochip_device(path: impl AsRef<Path>) -> io::Result<()> {
+    /// Create a new GPIO chip interface using path asynchronously
+    #[cfg(any(feature = "tokio", feature = "async-std"))]
+    pub async fn new_async(path: impl AsRef<Path>) -> io::Result<Chip> {
         let path = path.as_ref();
 
+        let dev = OpenOptions::new().read(true).write(true).open(path)?;
+
+        Chip::check_device_async(path).await?;
+
+        let mut info = raw::GpioChipInfo::default();
+
+        unsafe_call!(raw::gpio_get_chip_info(dev.as_raw_fd(), &mut info))?;
+
+        Ok(Chip {
+            name: safe_get_str(&info.name)?.into(),
+            label: safe_get_str(&info.label)?.into(),
+            num_lines: info.lines,
+            file: dev,
+        })
+    }
 
     /// List all found chips
     pub fn list_devices() -> io::Result<Vec<PathBuf>> {
@@ -461,6 +480,39 @@ impl Chip {
             .filter(|path| Self::check_device(path).is_ok())
             .collect())
     }
+
+    /// List all found chips asynchronously
+    #[cfg(any(feature = "tokio", feature = "async-std"))]
+    pub async fn list_devices_async() -> io::Result<Vec<PathBuf>> {
+        #[cfg(feature = "tokio")]
+        use tokio::fs::read_dir;
+
+        #[cfg(feature = "async-std")]
+        use async_std::{fs::read_dir, stream::StreamExt};
+
+        let mut devices = Vec::new();
+        let mut dir = read_dir("/dev").await?;
+
+        #[cfg(feature = "tokio")]
+        while let Some(ent) = dir.next_entry().await? {
+            let path = ent.path();
+            if Self::check_device_async(&path).await.is_ok() {
+                devices.push(path.into());
+            }
+        }
+
+        #[cfg(feature = "async-std")]
+        while let Some(ent) = dir.next().await {
+            let path = ent?.path();
+            if Self::check_device_async(path.as_ref()).await.is_ok() {
+                devices.push(path.into());
+            }
+        }
+
+        Ok(devices)
+    }
+
+    fn check_device(path: &Path) -> io::Result<()> {
         let metadata = symlink_metadata(&path)?;
 
         /* Is it a character device? */
@@ -479,6 +531,47 @@ impl Chip {
             major(rdev),
             minor(rdev)
         ))? != Path::new("/sys/bus/gpio")
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Character device is not a GPIO",
+            ));
+        }
+
+        Ok(())
+    }
+
+    #[cfg(any(feature = "tokio", feature = "async-std"))]
+    async fn check_device_async(path: &Path) -> io::Result<()> {
+        #[cfg(feature = "tokio")]
+        use tokio::fs::{canonicalize, symlink_metadata};
+
+        #[cfg(feature = "async-std")]
+        use async_std::{
+            fs::{canonicalize, symlink_metadata},
+            path::Path,
+        };
+
+        let metadata = symlink_metadata(&path).await?;
+
+        /* Is it a character device? */
+        if !metadata.file_type().is_char_device() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "File is not character device",
+            ));
+        }
+
+        let rdev = metadata.rdev();
+
+        /* Is the device associated with the GPIO subsystem? */
+        if canonicalize(format!(
+            "/sys/dev/char/{}:{}/subsystem",
+            major(rdev),
+            minor(rdev)
+        ))
+        .await?
+            != Path::new("/sys/bus/gpio")
         {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
