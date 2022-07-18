@@ -724,7 +724,7 @@ impl Chip {
         edge: EdgeDetect,
         bias: Bias,
         drive: Drive,
-        label: &str,
+        label: impl AsRef<str>,
     ) -> io::Result<Outputs> {
         let line_offsets = lines.as_ref();
 
@@ -758,7 +758,7 @@ impl Chip {
                 _ => (),
             }
 
-            safe_set_str(&mut request.consumer_label, label)?;
+            safe_set_str(&mut request.consumer_label, label.as_ref())?;
 
             unsafe_call!(raw::v1::gpio_get_line_handle(
                 self.file.as_raw_fd(),
@@ -803,7 +803,7 @@ impl Chip {
                 _ => (),
             };
 
-            safe_set_str(&mut request.consumer, label)?;
+            safe_set_str(&mut request.consumer, label.as_ref())?;
 
             unsafe_call!(raw::v2::gpio_get_line(self.file.as_raw_fd(), &mut request))?;
 
@@ -822,7 +822,7 @@ impl Chip {
         active: Active,
         edge: EdgeDetect,
         bias: Bias,
-        label: &str,
+        label: impl AsRef<str>,
     ) -> io::Result<Inputs> {
         let line_offsets = lines.as_ref();
 
@@ -850,7 +850,7 @@ impl Chip {
                 Bias::Disable => request.flags |= raw::v1::GPIOHANDLE_REQUEST_BIAS_DISABLE,
             }
 
-            safe_set_str(&mut request.consumer_label, label)?;
+            safe_set_str(&mut request.consumer_label, label.as_ref())?;
 
             unsafe_call!(raw::v1::gpio_get_line_handle(
                 self.file.as_raw_fd(),
@@ -889,7 +889,7 @@ impl Chip {
                 Bias::Disable => request.config.flags |= raw::v2::GPIO_LINE_FLAG_BIAS_DISABLED,
             }
 
-            safe_set_str(&mut request.consumer, label)?;
+            safe_set_str(&mut request.consumer, label.as_ref())?;
 
             unsafe_call!(raw::v2::gpio_get_line(self.file.as_raw_fd(), &mut request))?;
 
