@@ -1,4 +1,4 @@
-use std::{fmt, time::SystemTime};
+use std::{fmt, str, time::SystemTime};
 
 /// Line offset
 pub type LineId = u32;
@@ -84,7 +84,7 @@ impl Values {
 
 impl fmt::Display for Values {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let max = self.bits.leading_zeros().max(self.mask.leading_zeros()) as _;
+        let max = (64 - (self.bits & self.mask).leading_zeros() as u8).max(1);
         "0b".fmt(f)?;
         for i in (0..max).rev() {
             match self.get(i) {
@@ -98,6 +98,36 @@ impl fmt::Display for Values {
     }
 }
 
+impl str::FromStr for Values {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let s = s.strip_prefix("0b").unwrap_or(s);
+        let mut i = s.len();
+        if i > 64 {
+            return Err(());
+        }
+        let mut r = Self::default();
+        for c in s.chars() {
+            i -= 1;
+            match c {
+                '1' => {
+                    let b = 1 << i;
+                    r.bits |= b;
+                    r.mask |= b;
+                }
+                '0' => {
+                    let b = 1 << i;
+                    r.mask |= b;
+                }
+                'x' => {}
+                _ => return Err(()),
+            }
+        }
+        Ok(r)
+    }
+}
+
 /// Direction of a GPIO line
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -108,11 +138,17 @@ pub enum Direction {
     Output,
 }
 
+impl Default for Direction {
+    fn default() -> Self {
+        Self::Input
+    }
+}
+
 impl AsRef<str> for Direction {
     fn as_ref(&self) -> &str {
         match self {
-            Self::Input => "Input",
-            Self::Output => "Output",
+            Self::Input => "input",
+            Self::Output => "output",
         }
     }
 }
@@ -123,9 +159,15 @@ impl fmt::Display for Direction {
     }
 }
 
-impl Default for Direction {
-    fn default() -> Self {
-        Self::Input
+impl str::FromStr for Direction {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "i" | "in" | "input" => Self::Input,
+            "o" | "out" | "output" => Self::Output,
+            _ => return Err(()),
+        })
     }
 }
 
@@ -144,6 +186,12 @@ pub enum Active {
     High,
 }
 
+impl Default for Active {
+    fn default() -> Self {
+        Self::High
+    }
+}
+
 impl AsRef<str> for Active {
     fn as_ref(&self) -> &str {
         match self {
@@ -159,9 +207,15 @@ impl fmt::Display for Active {
     }
 }
 
-impl Default for Active {
-    fn default() -> Self {
-        Self::High
+impl str::FromStr for Active {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "l" | "lo" | "low" | "active-low" => Self::Low,
+            "h" | "hi" | "high" | "active-high" => Self::High,
+            _ => return Err(()),
+        })
     }
 }
 
@@ -190,8 +244,20 @@ impl fmt::Display for Edge {
     }
 }
 
+impl str::FromStr for Edge {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "r" | "rise" | "rising" => Self::Rising,
+            "f" | "fall" | "falling" => Self::Falling,
+            _ => return Err(()),
+        })
+    }
+}
+
 /// Signal edge detection event
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Event {
     /// GPIO line where edge detected
     pub line: BitId,
@@ -199,6 +265,17 @@ pub struct Event {
     pub edge: Edge,
     /// Time when edge actually detected
     pub time: SystemTime,
+}
+
+impl fmt::Display for Event {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        '#'.fmt(f)?;
+        self.line.fmt(f)?;
+        ' '.fmt(f)?;
+        self.edge.fmt(f)
+        //' '.fmt(f)?;
+        //(&self.time as &dyn fmt::Debug).fmt(f)
+    }
 }
 
 /// Edge detection setting for GPIO line
@@ -213,6 +290,12 @@ pub enum EdgeDetect {
     Falling,
     /// Detect both rising and falling edges
     Both,
+}
+
+impl Default for EdgeDetect {
+    fn default() -> Self {
+        Self::Disable
+    }
 }
 
 impl AsRef<str> for EdgeDetect {
@@ -232,9 +315,17 @@ impl fmt::Display for EdgeDetect {
     }
 }
 
-impl Default for EdgeDetect {
-    fn default() -> Self {
-        Self::Disable
+impl str::FromStr for EdgeDetect {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "d" | "disable" => Self::Disable,
+            "r" | "rise" | "rising" => Self::Rising,
+            "f" | "fall" | "falling" => Self::Falling,
+            "b" | "both" | "rise-fall" | "rising-falling" => Self::Both,
+            _ => return Err(()),
+        })
     }
 }
 
@@ -253,12 +344,18 @@ pub enum Bias {
     PullDown,
 }
 
+impl Default for Bias {
+    fn default() -> Self {
+        Self::Disable
+    }
+}
+
 impl AsRef<str> for Bias {
     fn as_ref(&self) -> &str {
         match self {
-            Self::Disable => "Disable",
-            Self::PullUp => "Pull up",
-            Self::PullDown => "Pull down",
+            Self::Disable => "disable",
+            Self::PullUp => "pull-up",
+            Self::PullDown => "pull-down",
         }
     }
 }
@@ -269,9 +366,16 @@ impl fmt::Display for Bias {
     }
 }
 
-impl Default for Bias {
-    fn default() -> Self {
-        Self::Disable
+impl str::FromStr for Bias {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "d" | "disable" => Self::Disable,
+            "pu" | "pull-up" => Self::PullUp,
+            "pd" | "pull-down" => Self::PullUp,
+            _ => return Err(()),
+        })
     }
 }
 
@@ -289,12 +393,18 @@ pub enum Drive {
     OpenSource,
 }
 
+impl Default for Drive {
+    fn default() -> Self {
+        Self::PushPull
+    }
+}
+
 impl AsRef<str> for Drive {
     fn as_ref(&self) -> &str {
         match self {
-            Self::PushPull => "Push pull",
-            Self::OpenDrain => "Open drain",
-            Self::OpenSource => "Open source",
+            Self::PushPull => "push-pull",
+            Self::OpenDrain => "open-drain",
+            Self::OpenSource => "open-source",
         }
     }
 }
@@ -305,8 +415,122 @@ impl fmt::Display for Drive {
     }
 }
 
-impl Default for Drive {
-    fn default() -> Self {
-        Self::PushPull
+impl str::FromStr for Drive {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "pp" | "push-pull" => Self::PushPull,
+            "od" | "open-drain" => Self::OpenDrain,
+            "os" | "open-source" => Self::OpenSource,
+            _ => return Err(()),
+        })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn format_values() {
+        assert_eq!(Values::from(0b1000u8).to_string(), "0b1000");
+
+        assert_eq!(
+            Values {
+                bits: 0b0011,
+                mask: 0b0111,
+            }
+            .to_string(),
+            "0b11"
+        );
+
+        assert_eq!(
+            Values {
+                bits: 0b11000,
+                mask: 0b00011,
+            }
+            .to_string(),
+            "0b0"
+        );
+
+        assert_eq!(
+            Values {
+                bits: 0b100001,
+                mask: 0b110011,
+            }
+            .to_string(),
+            "0b10xx01"
+        );
+    }
+
+    #[test]
+    fn parse_values() {
+        assert_eq!(
+            "0110".parse::<Values>().unwrap(),
+            Values {
+                bits: 0b0110,
+                mask: 0b1111,
+            }
+        );
+
+        assert_eq!(
+            "0b10101".parse::<Values>().unwrap(),
+            Values {
+                bits: 0b10101,
+                mask: 0b11111,
+            }
+        );
+
+        assert_eq!(
+            "1x10x".parse::<Values>().unwrap(),
+            Values {
+                bits: 0b10100,
+                mask: 0b10110,
+            }
+        );
+
+        assert_eq!(
+            "xx0x010".parse::<Values>().unwrap(),
+            Values {
+                bits: 0b00010,
+                mask: 0b10111,
+            }
+        );
+
+        assert_eq!(
+            "0bxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                .parse::<Values>()
+                .unwrap(),
+            Values::default()
+        );
+
+        assert_eq!(
+            "0b1111111111111111111111111111111111111111111111111111111111111111"
+                .parse::<Values>()
+                .unwrap(),
+            Values {
+                bits: u64::MAX,
+                mask: u64::MAX,
+            }
+        );
+
+        assert_eq!(
+            "0b0000000000000000000000000000000000000000000000000000000000000000"
+                .parse::<Values>()
+                .unwrap(),
+            Values {
+                bits: 0,
+                mask: u64::MAX,
+            }
+        );
+
+        assert!(
+            "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                .parse::<Values>()
+                .is_err()
+        );
+
+        assert!("0b10xy".parse::<Values>().is_err());
     }
 }
