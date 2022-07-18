@@ -19,6 +19,15 @@ pub fn invalid_data() -> io::Error {
 }
 
 #[inline(always)]
+pub fn check_size<T: ?Sized>(len: usize, val: &T) -> io::Result<()> {
+    if len < size_of_val(val) {
+        Ok(())
+    } else {
+        Err(invalid_data())
+    }
+}
+
+#[inline(always)]
 pub fn check_len<V, T: ?Sized>(slice: &[V], val: &T) -> io::Result<()> {
     if slice.len() < size_of_val(val) {
         Ok(())

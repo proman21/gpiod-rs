@@ -80,7 +80,7 @@ impl LineValues {
             unsafe_call!(raw::v2::gpio_line_get_values(
                 self.file.as_raw_fd(),
                 // it's safe because data layout is same
-                core::mem::transmute(&mut output_data)
+                &mut output_data as *mut _ as *mut _
             ))?;
         }
 
@@ -110,7 +110,7 @@ impl LineValues {
 
             unsafe_call!(raw::v2::gpio_line_set_values(
                 self.file.as_raw_fd(),
-                core::mem::transmute(&mut values)
+                &mut values as *mut _ as *mut _
             ))?;
         }
 
@@ -155,7 +155,7 @@ impl LineValues {
             // TODO: Read multiple fds simultaneously via polling
             let mut event = raw::v1::GpioEventData::default();
 
-            self.file.read(event.as_mut())?;
+            check_size(self.file.read(event.as_mut())?, &event)?;
 
             todo!();
             //self.make_event(line, event)
@@ -165,7 +165,7 @@ impl LineValues {
         {
             let mut event = raw::v2::GpioLineEvent::default();
 
-            self.file.read(event.as_mut())?;
+            check_size(self.file.read(event.as_mut())?, &event)?;
 
             self.make_event(event)
         }
@@ -199,7 +199,7 @@ impl LineValues {
             // bypass close syscall
             core::mem::forget(file);
 
-            res?;
+            check_size(res?, &event)?;
 
             self.make_event(event)
         }
