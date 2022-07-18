@@ -128,7 +128,7 @@ impl LineValues {
         let edge = match event.id {
             raw::v1::GPIOEVENT_EVENT_RISING_EDGE => Edge::Rising,
             raw::v1::GPIOEVENT_EVENT_FALLING_EDGE => Edge::Falling,
-            _ => return Err(invalid_data()),
+            _ => return Err(invalid_data("Unknown edge")),
         };
 
         let time = SystemTime::UNIX_EPOCH + Duration::from_nanos(event.timestamp);
@@ -138,12 +138,14 @@ impl LineValues {
 
     #[cfg(feature = "v2")]
     fn make_event(&self, event: raw::v2::GpioLineEvent) -> io::Result<Event> {
-        let line = self.line_bit(event.offset).ok_or_else(invalid_data)?;
+        let line = self
+            .line_bit(event.offset)
+            .ok_or_else(|| invalid_data("Unknown line offset"))?;
 
         let edge = match event.id {
             raw::v2::GPIO_LINE_EVENT_RISING_EDGE => Edge::Rising,
             raw::v2::GPIO_LINE_EVENT_FALLING_EDGE => Edge::Falling,
-            _ => return Err(invalid_data()),
+            _ => return Err(invalid_data("Unknown edge")),
         };
 
         let time = SystemTime::UNIX_EPOCH + Duration::from_nanos(event.timestamp_ns);
@@ -519,10 +521,7 @@ impl Chip {
 
         /* Is it a character device? */
         if !metadata.file_type().is_char_device() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "File is not character device",
-            ));
+            return Err(invalid_input("File is not character device"));
         }
 
         let rdev = metadata.rdev();
@@ -534,10 +533,7 @@ impl Chip {
             minor(rdev)
         ))? != Path::new("/sys/bus/gpio")
         {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "Character device is not a GPIO",
-            ));
+            return Err(invalid_input("Character device is not a GPIO"));
         }
 
         Ok(())
@@ -558,10 +554,7 @@ impl Chip {
 
         /* Is it a character device? */
         if !metadata.file_type().is_char_device() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "File is not character device",
-            ));
+            return Err(invalid_input("File is not character device"));
         }
 
         let rdev = metadata.rdev();
@@ -575,10 +568,7 @@ impl Chip {
         .await?
             != Path::new("/sys/bus/gpio")
         {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "Character device is not a GPIO",
-            ));
+            return Err(invalid_input("Character device is not a GPIO"));
         }
 
         Ok(())

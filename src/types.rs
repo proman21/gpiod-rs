@@ -1,4 +1,5 @@
-use std::{fmt, str, time::SystemTime};
+use crate::utils::*;
+use std::{fmt, io, str, time::SystemTime};
 
 /// Line offset
 pub type LineId = u32;
@@ -71,13 +72,13 @@ impl fmt::Display for Values {
 }
 
 impl str::FromStr for Values {
-    type Err = ();
+    type Err = io::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.strip_prefix("0b").unwrap_or(s);
         let mut i = s.len();
         if i > 64 {
-            return Err(());
+            return Err(invalid_input("Too many line values"));
         }
         let mut r = Self::default();
         for c in s.chars() {
@@ -93,7 +94,7 @@ impl str::FromStr for Values {
                     r.mask |= b;
                 }
                 'x' => {}
-                _ => return Err(()),
+                _ => return Err(invalid_input("Unexpected char in line value")),
             }
         }
         Ok(r)
@@ -258,13 +259,13 @@ impl fmt::Display for Direction {
 }
 
 impl str::FromStr for Direction {
-    type Err = ();
+    type Err = io::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "i" | "in" | "input" => Self::Input,
             "o" | "out" | "output" => Self::Output,
-            _ => return Err(()),
+            _ => return Err(invalid_input("Not recognized direction")),
         })
     }
 }
@@ -306,13 +307,13 @@ impl fmt::Display for Active {
 }
 
 impl str::FromStr for Active {
-    type Err = ();
+    type Err = io::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "l" | "lo" | "low" | "active-low" => Self::Low,
             "h" | "hi" | "high" | "active-high" => Self::High,
-            _ => return Err(()),
+            _ => return Err(invalid_input("Not recognized active state")),
         })
     }
 }
@@ -343,13 +344,13 @@ impl fmt::Display for Edge {
 }
 
 impl str::FromStr for Edge {
-    type Err = ();
+    type Err = io::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "r" | "rise" | "rising" => Self::Rising,
             "f" | "fall" | "falling" => Self::Falling,
-            _ => return Err(()),
+            _ => return Err(invalid_input("Not recognized edge")),
         })
     }
 }
@@ -414,7 +415,7 @@ impl fmt::Display for EdgeDetect {
 }
 
 impl str::FromStr for EdgeDetect {
-    type Err = ();
+    type Err = io::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
@@ -422,7 +423,7 @@ impl str::FromStr for EdgeDetect {
             "r" | "rise" | "rising" => Self::Rising,
             "f" | "fall" | "falling" => Self::Falling,
             "b" | "both" | "rise-fall" | "rising-falling" => Self::Both,
-            _ => return Err(()),
+            _ => return Err(invalid_input("Not recognized edge-detect")),
         })
     }
 }
@@ -465,14 +466,14 @@ impl fmt::Display for Bias {
 }
 
 impl str::FromStr for Bias {
-    type Err = ();
+    type Err = io::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "d" | "disable" => Self::Disable,
             "pu" | "pull-up" => Self::PullUp,
             "pd" | "pull-down" => Self::PullUp,
-            _ => return Err(()),
+            _ => return Err(invalid_input("Not recognized input bias")),
         })
     }
 }
@@ -514,14 +515,14 @@ impl fmt::Display for Drive {
 }
 
 impl str::FromStr for Drive {
-    type Err = ();
+    type Err = io::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "pp" | "push-pull" => Self::PushPull,
             "od" | "open-drain" => Self::OpenDrain,
             "os" | "open-source" => Self::OpenSource,
-            _ => return Err(()),
+            _ => return Err(invalid_input("Not recognized output drive")),
         })
     }
 }

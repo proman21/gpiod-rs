@@ -9,13 +9,13 @@ where
 }
 
 #[inline(always)]
-pub fn invalid_input() -> io::Error {
-    io::Error::from(io::ErrorKind::InvalidInput)
+pub fn invalid_input(msg: &'static str) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidInput, msg)
 }
 
 #[inline(always)]
-pub fn invalid_data() -> io::Error {
-    io::Error::from(io::ErrorKind::InvalidData)
+pub fn invalid_data(msg: &'static str) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidData, msg)
 }
 
 #[inline(always)]
@@ -23,7 +23,7 @@ pub fn check_size<T: ?Sized>(len: usize, val: &T) -> io::Result<()> {
     if len < size_of_val(val) {
         Ok(())
     } else {
-        Err(invalid_data())
+        Err(invalid_data("Too long data"))
     }
 }
 
@@ -32,7 +32,7 @@ pub fn check_len<V, T: ?Sized>(slice: &[V], val: &T) -> io::Result<()> {
     if slice.len() < size_of_val(val) {
         Ok(())
     } else {
-        Err(invalid_input())
+        Err(invalid_input("Too many values"))
     }
 }
 
@@ -41,7 +41,7 @@ pub fn check_len_str<T: ?Sized>(slice: &str, val: &T) -> io::Result<()> {
     if slice.as_bytes().len() + 1 /* \0 */ < size_of_val(val) {
         Ok(())
     } else {
-        Err(invalid_input())
+        Err(invalid_input("String too long"))
     }
 }
 
@@ -59,7 +59,7 @@ pub fn safe_set_str<const N: usize>(dst: &mut [u8; N], src: &str) -> io::Result<
 #[inline(always)]
 pub fn safe_get_str(src: &[u8]) -> io::Result<&str> {
     Ok(str::from_utf8(src)
-        .map_err(|_| invalid_data())?
+        .map_err(|_| invalid_data("Invalid UTF-8"))?
         .trim_end_matches('\0'))
 }
 
