@@ -128,6 +128,23 @@ values_conv! {
     u64,
 }
 
+impl Extend<bool> for Values {
+    fn extend<T>(&mut self, iter: T)
+    where
+        T: IntoIterator<Item = bool>,
+    {
+        let mut vacant = self.mask.leading_zeros();
+
+        for value in iter {
+            if vacant > 0 {
+                self.bits = (self.bits << 1) | if value { 1 } else { 0 };
+                self.mask = (self.mask << 1) | 1;
+            }
+            vacant -= 1;
+        }
+    }
+}
+
 impl core::iter::FromIterator<bool> for Values {
     fn from_iter<I: IntoIterator<Item = bool>>(bits: I) -> Self {
         let mut values = Self::default();
@@ -639,6 +656,23 @@ mod test {
         );
 
         assert!("0b10xy".parse::<Values>().is_err());
+    }
+
+    #[test]
+    fn values_extend() {
+        let mut v = Values {
+            bits: 0b101,
+            mask: 0b111,
+        };
+        v.extend([false, true, true, false, true]);
+
+        assert_eq!(
+            v,
+            Values {
+                bits: 0b10101101,
+                mask: 0b11111111,
+            }
+        );
     }
 
     #[test]
