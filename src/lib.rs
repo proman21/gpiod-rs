@@ -11,7 +11,7 @@ mod utils;
 use std::{
     collections::HashMap,
     fmt,
-    fs::{canonicalize, symlink_metadata, File, OpenOptions},
+    fs::{canonicalize, read_dir, symlink_metadata, File, OpenOptions},
     io,
     io::Read,
     os::unix::{
@@ -19,7 +19,7 @@ use std::{
         io::{FromRawFd, RawFd},
         prelude::*,
     },
-    path::Path,
+    path::{Path, PathBuf},
     time::{Duration, SystemTime},
 };
 
@@ -452,6 +452,15 @@ impl Chip {
     fn check_gpiochip_device(path: impl AsRef<Path>) -> io::Result<()> {
         let path = path.as_ref();
 
+
+    /// List all found chips
+    pub fn list_devices() -> io::Result<Vec<PathBuf>> {
+        Ok(read_dir("/dev")?
+            .filter_map(Result::ok)
+            .map(|ent| ent.path())
+            .filter(|path| Self::check_device(path).is_ok())
+            .collect())
+    }
         let metadata = symlink_metadata(&path)?;
 
         /* Is it a character device? */
