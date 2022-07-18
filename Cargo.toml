@@ -9,6 +9,9 @@ categories = ["os", "os::linux-apis"]
 keywords = ["libgpiod", "GPIO", "Linux", "chardev", "ioctl"]
 edition = "2021"
 
+[workspace]
+members = ["cli"]
+
 [dependencies.nix]
 version = "0.24"
 default-features = false

@@ -1,0 +1,39 @@
+[package]
+name = "gpiod-cli"
+description = "Linux GPIO character device interfacing (utils)"
+version = "0.2.0"
+authors = ["Joao Rebelo <2730147+jrebelo@users.noreply.github.com>", "K. <kayo@illumium.org>"]
+license = "MIT"
+readme = "README.md"
+categories = ["command-line-utilities"]
+keywords = ["libgpiod", "GPIO", "Linux", "chardev", "ioctl"]
+edition = "2021"
+
+[[bin]]
+name = "gpiodetect-rs"
+path = "src/detect.rs"
+
+[[bin]]
+name = "gpioinfo-rs"
+path = "src/info.rs"
+
+[[bin]]
+name = "gpioget-rs"
+path = "src/get.rs"
+
+[[bin]]
+name = "gpioset-rs"
+path = "src/set.rs"
+
+[dependencies.gpiod]
+path = ".."
+
+[dependencies.anyhow]
+version = "1"
+
+[dependencies.paw]
+version = "1"
+
+[dependencies.structopt]
+version = "0.3"
+features = ["paw"]
