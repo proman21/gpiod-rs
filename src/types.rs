@@ -82,6 +82,22 @@ impl Values {
     }
 }
 
+impl fmt::Display for Values {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let max = self.bits.leading_zeros().max(self.mask.leading_zeros()) as _;
+        "0b".fmt(f)?;
+        for i in (0..max).rev() {
+            match self.get(i) {
+                Some(true) => '1',
+                Some(false) => '0',
+                None => 'x',
+            }
+            .fmt(f)?;
+        }
+        Ok(())
+    }
+}
+
 /// Direction of a GPIO line
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
