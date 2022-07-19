@@ -12,7 +12,6 @@ use std::{
     collections::HashMap,
     fmt,
     fs::{canonicalize, read_dir, symlink_metadata, File, OpenOptions},
-    io,
     io::Read,
     os::unix::{
         fs::{FileTypeExt, MetadataExt},
@@ -23,6 +22,9 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+pub(crate) use std::{
+    io::{Error, Result},
+};
 pub use types::{
     Active, Bias, BitId, Direction, Drive, Edge, EdgeDetect, Event, LineId, Values, ValuesIter,
 };
@@ -30,7 +32,7 @@ use utils::*;
 
 macro_rules! unsafe_call {
     ($res:expr) => {
-        unsafe { $res }.map_err(io::Error::from)
+        unsafe { $res }.map_err(Error::from)
     };
 }
 
@@ -60,9 +62,9 @@ impl LineValues {
         }
     }
 
-    fn get_values<T: From<Values>>(&self) -> io::Result<T> {
         let mut output_data = Values::default();
 
+    fn get_values<T: From<Values>>(&self) -> Result<T> {
         #[cfg(not(feature = "v2"))]
         {
             let mut data = raw::v1::GpioHandleData::default();
@@ -89,7 +91,7 @@ impl LineValues {
         Ok(output_data.into())
     }
 
-    fn set_values(&self, values: impl Into<Values>) -> io::Result<()> {
+    fn set_values(&self, values: impl Into<Values>) -> Result<()> {
         let values = values.into();
 
         #[cfg(not(feature = "v2"))]
@@ -153,7 +155,7 @@ impl LineValues {
         Ok(Event { line, edge, time })
     }
 
-    fn read_event(&mut self) -> io::Result<Event> {
+    fn read_event(&mut self) -> Result<Event> {
         #[cfg(not(feature = "v2"))]
         {
             // TODO: Read multiple fds simultaneously via polling
@@ -176,7 +178,7 @@ impl LineValues {
     }
 
     #[cfg(any(feature = "tokio", feature = "async-std"))]
-    async fn read_event_async(&mut self) -> io::Result<Event> {
+    async fn read_event_async(&mut self) -> Result<Event> {
         #[cfg(not(feature = "v2"))]
         {
             todo!();
@@ -236,12 +238,12 @@ impl Inputs {
     ///
     /// The values can only be read if the lines have previously been requested as either inputs
     /// using the [Chip::request_input] method, or outputs using the [Chip::request_output].
-    pub fn get_values<T: From<Values>>(&self) -> io::Result<T> {
+    pub fn get_values<T: From<Values>>(&self) -> Result<T> {
         self.0.get_values()
     }
 
     /// Read GPIO events synchronously
-    pub fn read_event(&mut self) -> io::Result<Event> {
+    pub fn read_event(&mut self) -> Result<Event> {
         self.0.read_event()
     }
 
@@ -251,7 +253,7 @@ impl Inputs {
         doc(cfg(any(feature = "tokio", feature = "async-std")))
     )]
     #[cfg(any(feature = "tokio", feature = "async-std"))]
-    pub async fn read_event_async(&mut self) -> io::Result<Event> {
+    pub async fn read_event_async(&mut self) -> Result<Event> {
         self.0.read_event_async().await
     }
 }
@@ -285,7 +287,7 @@ impl Outputs {
     ///
     /// The values can only be read if the lines have previously been requested as either inputs
     /// using the [Chip::request_input] method, or outputs using the [Chip::request_output].
-    pub fn get_values<T: From<Values>>(&self) -> io::Result<T> {
+    pub fn get_values<T: From<Values>>(&self) -> Result<T> {
         self.0.get_values()
     }
 
@@ -293,12 +295,12 @@ impl Outputs {
     ///
     /// The value can only be set if the lines have previously been requested as outputs
     /// using the [Chip::request_output].
-    pub fn set_values(&self, values: impl Into<Values>) -> io::Result<()> {
+    pub fn set_values(&self, values: impl Into<Values>) -> Result<()> {
         self.0.set_values(values)
     }
 
     /// Read GPIO events synchronously
-    pub fn read_event(&mut self) -> io::Result<Event> {
+    pub fn read_event(&mut self) -> Result<Event> {
         self.0.read_event()
     }
 
@@ -308,7 +310,7 @@ impl Outputs {
         doc(cfg(any(feature = "tokio", feature = "async-std")))
     )]
     #[cfg(any(feature = "tokio", feature = "async-std"))]
-    pub async fn read_event_async(&mut self) -> io::Result<Event> {
+    pub async fn read_event_async(&mut self) -> Result<Event> {
         self.0.read_event_async().await
     }
 }
@@ -416,7 +418,7 @@ impl fmt::Display for Chip {
 
 impl Chip {
     /// Create a new GPIO chip interface using path
-    pub fn new(path: impl AsRef<Path>) -> io::Result<Chip> {
+    pub fn new(path: impl AsRef<Path>) -> Result<Chip> {
         let path = path.as_ref();
 
         let dev = OpenOptions::new().read(true).write(true).open(path)?;
@@ -437,7 +439,7 @@ impl Chip {
 
     /// Create a new GPIO chip interface using path asynchronously
     #[cfg(any(feature = "tokio", feature = "async-std"))]
-    pub async fn new_async(path: impl AsRef<Path>) -> io::Result<Chip> {
+    pub async fn new_async(path: impl AsRef<Path>) -> Result<Chip> {
         let path = path.as_ref();
 
         let dev = OpenOptions::new().read(true).write(true).open(path)?;
@@ -457,7 +459,7 @@ impl Chip {
     }
 
     /// List all found chips
-    pub fn list_devices() -> io::Result<Vec<PathBuf>> {
+    pub fn list_devices() -> Result<Vec<PathBuf>> {
         Ok(read_dir("/dev")?
             .filter_map(Result::ok)
             .map(|ent| ent.path())
@@ -467,7 +469,7 @@ impl Chip {
 
     /// List all found chips asynchronously
     #[cfg(any(feature = "tokio", feature = "async-std"))]
-    pub async fn list_devices_async() -> io::Result<Vec<PathBuf>> {
+    pub async fn list_devices_async() -> Result<Vec<PathBuf>> {
         #[cfg(feature = "tokio")]
         use tokio::fs::read_dir;
 
@@ -496,7 +498,7 @@ impl Chip {
         Ok(devices)
     }
 
-    fn check_device(path: &Path) -> io::Result<()> {
+    fn check_device(path: &Path) -> Result<()> {
         let metadata = symlink_metadata(&path)?;
 
         /* Is it a character device? */
@@ -520,7 +522,7 @@ impl Chip {
     }
 
     #[cfg(any(feature = "tokio", feature = "async-std"))]
-    async fn check_device_async(path: &Path) -> io::Result<()> {
+    async fn check_device_async(path: &Path) -> Result<()> {
         #[cfg(feature = "tokio")]
         use tokio::fs::{canonicalize, symlink_metadata};
 
@@ -555,7 +557,7 @@ impl Chip {
     }
 
     /// Request the info of a specific GPIO line.
-    pub fn line_info(&self, line: LineId) -> io::Result<LineInfo> {
+    pub fn line_info(&self, line: LineId) -> Result<LineInfo> {
         #[cfg(not(feature = "v2"))]
         {
             let mut info = raw::v1::GpioLineInfo {
@@ -697,7 +699,7 @@ impl Chip {
         bias: Bias,
         drive: Drive,
         label: impl AsRef<str>,
-    ) -> io::Result<Outputs> {
+    ) -> Result<Outputs> {
         let line_offsets = lines.as_ref();
 
         #[cfg(not(feature = "v2"))]
@@ -795,7 +797,7 @@ impl Chip {
         edge: EdgeDetect,
         bias: Bias,
         label: impl AsRef<str>,
-    ) -> io::Result<Inputs> {
+    ) -> Result<Inputs> {
         let line_offsets = lines.as_ref();
 
         #[cfg(not(feature = "v2"))]

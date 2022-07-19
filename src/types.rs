@@ -1,5 +1,5 @@
-use crate::utils::*;
-use std::{fmt, io, str, time::SystemTime};
+use crate::{utils::*, Error, Result};
+use std::{fmt, str, time::SystemTime};
 
 /// Line offset
 pub type LineId = u32;
@@ -72,9 +72,9 @@ impl fmt::Display for Values {
 }
 
 impl str::FromStr for Values {
-    type Err = io::Error;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         let s = s.strip_prefix("0b").unwrap_or(s);
         let mut i = s.len();
         if i > 64 {
@@ -259,9 +259,9 @@ impl fmt::Display for Direction {
 }
 
 impl str::FromStr for Direction {
-    type Err = io::Error;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
             "i" | "in" | "input" => Self::Input,
             "o" | "out" | "output" => Self::Output,
@@ -307,9 +307,9 @@ impl fmt::Display for Active {
 }
 
 impl str::FromStr for Active {
-    type Err = io::Error;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
             "l" | "lo" | "low" | "active-low" => Self::Low,
             "h" | "hi" | "high" | "active-high" => Self::High,
@@ -344,9 +344,9 @@ impl fmt::Display for Edge {
 }
 
 impl str::FromStr for Edge {
-    type Err = io::Error;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
             "r" | "rise" | "rising" => Self::Rising,
             "f" | "fall" | "falling" => Self::Falling,
@@ -415,9 +415,9 @@ impl fmt::Display for EdgeDetect {
 }
 
 impl str::FromStr for EdgeDetect {
-    type Err = io::Error;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
             "d" | "disable" => Self::Disable,
             "r" | "rise" | "rising" => Self::Rising,
@@ -466,9 +466,9 @@ impl fmt::Display for Bias {
 }
 
 impl str::FromStr for Bias {
-    type Err = io::Error;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
             "d" | "disable" => Self::Disable,
             "pu" | "pull-up" => Self::PullUp,
@@ -515,9 +515,9 @@ impl fmt::Display for Drive {
 }
 
 impl str::FromStr for Drive {
-    type Err = io::Error;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
             "pp" | "push-pull" => Self::PushPull,
             "od" | "open-drain" => Self::OpenDrain,
