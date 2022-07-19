@@ -372,34 +372,14 @@ impl LineInfo {
         self.bias
     }
 
-    /// In line configured as pull up input
-    pub fn is_pull_up(&self) -> bool {
-        matches!(self.bias, Bias::PullUp)
-    }
-
-    /// In line configured as pull down input
-    pub fn is_pull_down(&self) -> bool {
-        matches!(self.bias, Bias::PullDown)
-    }
-
     /// Get output mode of line
     pub fn drive(&self) -> Drive {
         self.drive
     }
 
     /// Is line used
-    pub fn is_used(&self) -> bool {
+    pub fn used(&self) -> bool {
         self.used
-    }
-
-    /// Is line configured as open drain output
-    pub fn is_open_drain(&self) -> bool {
-        matches!(self.drive, Drive::OpenDrain)
-    }
-
-    /// Is line configured as open source output
-    pub fn is_open_source(&self) -> bool {
-        matches!(self.drive, Drive::OpenSource)
     }
 
     /// Get line name
