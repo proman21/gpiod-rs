@@ -61,7 +61,7 @@ impl Inputs {
 
     /// Read GPIO events
     pub fn read_event(&mut self) -> Result<Event> {
-        read_event(&self.info.index(), &mut self.file)
+        read_event(self.info.index(), &mut self.file)
     }
 }
 
@@ -112,7 +112,7 @@ impl Outputs {
 
     /// Read GPIO events
     pub fn read_event(&mut self) -> Result<Event> {
-        read_event(&self.info.index(), &mut self.file)
+        read_event(self.info.index(), &mut self.file)
     }
 }
 

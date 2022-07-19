@@ -136,7 +136,7 @@ impl Inputs {
 
     /// Read GPIO events synchronously
     pub async fn read_event(&mut self) -> Result<Event> {
-        read_event(&self.info.index(), &mut self.file).await
+        read_event(self.info.index(), &mut self.file).await
     }
 }
 
@@ -184,7 +184,7 @@ impl Outputs {
 
     /// Read GPIO events synchronously
     pub async fn read_event(&mut self) -> Result<Event> {
-        read_event(&self.info.index(), &mut self.file).await
+        read_event(self.info.index(), &mut self.file).await
     }
 }
 
@@ -244,7 +244,7 @@ impl Chip {
         while let Some(ent) = dir.next_entry().await? {
             let path = ent.path();
             if Self::check_device(&path).await.is_ok() {
-                devices.push(path.into());
+                devices.push(path);
             }
         }
 
