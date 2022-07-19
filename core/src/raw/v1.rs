@@ -36,7 +36,7 @@ pub struct GpioLineInfo {
     pub consumer: [u8; GPIO_MAX_NAME_SIZE],
 }
 
-const GPIOHANDLES_MAX: usize = 64;
+pub const GPIOHANDLES_MAX: usize = 64;
 
 #[derive(Clone, Copy)]
 #[repr(C)]

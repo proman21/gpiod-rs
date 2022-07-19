@@ -1,7 +1,7 @@
 use super::{GPIO_MAGIC, GPIO_MAX_NAME_SIZE};
 
-const GPIO_LINES_MAX: usize = 64;
-const GPIO_LINE_NUM_ATTRS_MAX: usize = 10;
+pub const GPIO_LINES_MAX: usize = 64;
+pub const GPIO_LINE_NUM_ATTRS_MAX: usize = 10;
 
 // Flags for line
 pub const GPIO_LINE_FLAG_USED: u64 = 1 << 0;

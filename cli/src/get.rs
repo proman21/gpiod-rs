@@ -23,7 +23,7 @@ struct Args {
 
 #[paw::main]
 fn main(args: Args) -> anyhow::Result<()> {
-    if args.lines.len() > 64 {
+    if args.lines.len() > gpiod::Values::MAX {
         anyhow::bail!("Too many lines");
     }
 

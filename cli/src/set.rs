@@ -49,7 +49,7 @@ impl std::str::FromStr for LineValue {
 
 #[paw::main]
 fn main(args: Args) -> anyhow::Result<()> {
-    if args.line_values.len() > 64 {
+    if args.line_values.len() > gpiod::Values::MAX {
         anyhow::bail!("Too many lines");
     }
 

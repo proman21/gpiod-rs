@@ -1,5 +1,5 @@
 [package]
-name = "gpiod"
+name = "gpiod-core"
 description = "Linux GPIO character device interfacing"
 version = "0.2.0"
 authors = ["Joao Rebelo <2730147+jrebelo@users.noreply.github.com>", "K. <kayo@illumium.org>"]
@@ -9,17 +9,14 @@ categories = ["os", "os::linux-apis"]
 keywords = ["libgpiod", "GPIO", "Linux", "chardev", "ioctl"]
 edition = "2021"
 
-[workspace]
-members = ["core", "cli", "tokio", "async-std"]
-
-[dependencies.gpiod-core]
-path = "core"
-version = "0.2.0"
+[dependencies.nix]
+version = "0.24"
 default-features = false
+features = ["ioctl"]
 
 [features]
 default = ["v2"]
-v2 = ["gpiod-core/v2"]
+v2 = []
 
 [package.metadata.docs.rs]
 features = ["v2"]

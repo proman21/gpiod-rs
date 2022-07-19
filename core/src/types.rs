@@ -7,6 +7,9 @@ pub type LineId = u32;
 /// Bit offset
 pub type BitId = u8;
 
+/// Value bits and mask
+pub type Bits = u64;
+
 /// Line offset to bit offset mapping
 #[derive(Debug, Clone)]
 pub struct LineMap {
@@ -14,7 +17,7 @@ pub struct LineMap {
 }
 
 impl LineMap {
-    const NOT_LINE: BitId = 64;
+    const NOT_LINE: BitId = Values::MAX as _;
 
     /// Create line map
     pub fn new(lines: &[LineId]) -> Self {
@@ -41,8 +44,6 @@ impl LineMap {
 }
 
 /// The information of a specific GPIO line
-///
-/// Can be obtained through the [Chip::line_info].
 pub struct LineInfo {
     /// GPIO line direction
     pub direction: Direction,
@@ -100,18 +101,21 @@ impl fmt::Display for LineInfo {
 #[repr(C)]
 pub struct Values {
     /// Logic values of lines
-    pub bits: u64,
+    pub bits: Bits,
 
     /// Mask of lines to get or set
-    pub mask: u64,
+    pub mask: Bits,
 }
 
 impl Values {
+    /// Maximum number of values (bits)
+    pub const MAX: usize = core::mem::size_of::<Bits>() * 8;
+
     /// Get the value of specific bit
     ///
     /// If bit is out of range (0..64) or not masked then None will be returned.
     pub fn get(&self, bit: BitId) -> Option<bool> {
-        if bit > 64 {
+        if bit > Self::MAX as _ {
             return None;
         }
 
@@ -128,7 +132,7 @@ impl Values {
     ///
     /// If bit if out of range (0..64) then nothing will be set.
     pub fn set(&mut self, bit: BitId, val: bool) {
-        if bit > 64 {
+        if bit > Self::MAX as _ {
             return;
         }
 
@@ -146,7 +150,7 @@ impl Values {
 
 impl fmt::Display for Values {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let max = (64u8 - self.mask.leading_zeros() as u8).max(1);
+        let max = (Self::MAX as BitId - self.mask.leading_zeros() as BitId).max(1);
         "0b".fmt(f)?;
         for i in (0..max).rev() {
             match self.get(i) {
@@ -166,7 +170,7 @@ impl str::FromStr for Values {
     fn from_str(s: &str) -> Result<Self> {
         let s = s.strip_prefix("0b").unwrap_or(s);
         let mut i = s.len();
-        if i > 64 {
+        if i > Self::MAX {
             return Err(invalid_input("Too many line values"));
         }
         let mut r = Self::default();
@@ -238,7 +242,7 @@ impl Extend<bool> for Values {
 impl core::iter::FromIterator<bool> for Values {
     fn from_iter<I: IntoIterator<Item = bool>>(bits: I) -> Self {
         let mut values = Self::default();
-        let mut i = 64;
+        let mut i = Self::MAX;
         for bit in bits {
             i -= 1;
             let mask = 1 << i;
@@ -265,7 +269,7 @@ impl core::iter::IntoIterator for Values {
     fn into_iter(self) -> Self::IntoIter {
         ValuesIter {
             bits: self.bits,
-            i: 64u8 - self.mask.leading_zeros() as u8,
+            i: Self::MAX as BitId - self.mask.leading_zeros() as BitId,
         }
     }
 }
@@ -273,8 +277,8 @@ impl core::iter::IntoIterator for Values {
 /// Iterator over line values
 #[derive(Debug, Clone, Copy)]
 pub struct ValuesIter {
-    bits: u64,
-    i: u8,
+    bits: Bits,
+    i: BitId,
 }
 
 impl core::iter::Iterator for ValuesIter {
@@ -295,7 +299,7 @@ impl<T: AsRef<[bool]>> TryFrom<T> for Values {
     fn from(bits: T) -> Self {
         let bits = bits.as_ref();
         let mut values = Self::default();
-        for i in 0..bits.len().min(64) {
+        for i in 0..bits.len().min(Self::MAX) {
             values.set(i as _, bits[63 - i]);
         }
         values
@@ -304,7 +308,7 @@ impl<T: AsRef<[bool]>> TryFrom<T> for Values {
 
 impl From<Values> for Vec<bool> {
     fn from(values: Values) -> Self {
-        let mut i = 64u8 - values.mask.leading_zeros() as u8;
+        let mut i = Self::MAX as BitId - values.mask.leading_zeros() as BitId;
         let mut bits = Vec::with_capacity(i as _);
         let raw = values.bits & values.mask;
         while i > 0 {
@@ -724,8 +728,8 @@ mod test {
                 .parse::<Values>()
                 .unwrap(),
             Values {
-                bits: u64::MAX,
-                mask: u64::MAX,
+                bits: Bits::MAX,
+                mask: Bits::MAX,
             }
         );
 
@@ -735,7 +739,7 @@ mod test {
                 .unwrap(),
             Values {
                 bits: 0,
-                mask: u64::MAX,
+                mask: Bits::MAX,
             }
         );
 

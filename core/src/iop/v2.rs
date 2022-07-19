@@ -3,6 +3,9 @@ use crate::{
     LineInfo, LineMap, Result, Values,
 };
 
+/// Raw event ro read from fd
+pub type RawEvent = GpioLineEvent;
+
 impl GpioLineInfo {
     pub fn as_info(&self) -> Result<LineInfo> {
         let direction = if is_set(self.flags, GPIO_LINE_FLAG_OUTPUT) {

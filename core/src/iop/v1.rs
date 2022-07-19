@@ -3,6 +3,9 @@ use crate::{
     LineInfo, Result, Values,
 };
 
+/// Raw event to read from fd
+pub type RawEvent = GpioEventData;
+
 impl GpioLineInfo {
     pub fn as_info(&self) -> Result<LineInfo> {
         let direction = if is_set(self.flags, GPIOLINE_FLAG_IS_OUT) {
@@ -123,7 +126,7 @@ impl GpioHandleData {
 }
 
 impl GpioEventData {
-    pub fn to_event(&self, line: BitId) -> Result<Event> {
+    pub fn as_event(&self, line: BitId) -> Result<Event> {
         let edge = match self.id {
             GPIOEVENT_EVENT_RISING_EDGE => Edge::Rising,
             GPIOEVENT_EVENT_FALLING_EDGE => Edge::Falling,
