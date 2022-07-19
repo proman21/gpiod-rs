@@ -9,7 +9,6 @@ mod types;
 mod utils;
 
 use std::{
-    collections::HashMap,
     fmt,
     fs::{canonicalize, read_dir, symlink_metadata, File, OpenOptions},
     io::Read,
@@ -26,7 +25,8 @@ pub(crate) use std::{
     io::{Error, Result},
 };
 pub use types::{
-    Active, Bias, BitId, Direction, Drive, Edge, EdgeDetect, Event, LineId, Values, ValuesIter,
+    Active, Bias, BitId, Direction, Drive, Edge, EdgeDetect, Event, LineId, LineMap, Values,
+    ValuesIter,
 };
 use utils::*;
 
@@ -39,21 +39,16 @@ macro_rules! unsafe_call {
 struct LineValues {
     chip_name: String,
     offset: Vec<LineId>,
-    index: HashMap<LineId, BitId>,
+    index: LineMap,
     file: File,
 }
 
 impl LineValues {
     fn new(chip_name: &str, offset: &[LineId], fd: RawFd) -> Self {
         let chip_name = chip_name.into();
+        let index = LineMap::new(offset);
         let offset = offset.to_owned();
         let file = unsafe { File::from_raw_fd(fd) };
-        let index = offset
-            .iter()
-            .copied()
-            .enumerate()
-            .map(|(index, line)| (line, index as _))
-            .collect();
         Self {
             chip_name,
             offset,
@@ -119,10 +114,6 @@ impl LineValues {
         }
 
         Ok(())
-    }
-
-    fn line_bit(&self, line: LineId) -> Option<BitId> {
-        self.index.get(&line).copied()
     }
 
     #[cfg(not(feature = "v2"))]

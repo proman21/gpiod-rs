@@ -7,6 +7,39 @@ pub type LineId = u32;
 /// Bit offset
 pub type BitId = u8;
 
+/// Line offset to bit offset mapping
+#[derive(Debug, Clone)]
+pub struct LineMap {
+    map: Vec<BitId>,
+}
+
+impl LineMap {
+    const NOT_LINE: BitId = 64;
+
+    /// Create line map
+    pub fn new(lines: &[LineId]) -> Self {
+        let mut map: Vec<BitId> = (0..=lines.iter().max().copied().unwrap_or(0))
+            .map(|_| Self::NOT_LINE)
+            .collect();
+        for i in 0..lines.len() {
+            map[lines[i] as usize] = i as _;
+        }
+        Self { map }
+    }
+
+    /// Get bit position by line offset
+    pub fn get(&self, line: LineId) -> Result<BitId> {
+        let line = line as usize;
+        if line < self.map.len() {
+            let val = self.map[line];
+            if val != Self::NOT_LINE {
+                return Ok(val as _);
+            }
+        }
+        Err(invalid_data("Unknown line offset"))
+    }
+}
+
 /// Line values
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[repr(C)]
