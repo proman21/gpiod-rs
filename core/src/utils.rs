@@ -35,7 +35,7 @@ pub fn check_size<T: ?Sized>(len: usize, val: &T) -> Result<()> {
 
 #[inline(always)]
 pub fn check_len<V, T: ?Sized>(slice: &[V], val: &T) -> Result<()> {
-    if slice.len() < size_of_val(val) {
+    if slice.len() <= size_of_val(val) {
         Ok(())
     } else {
         Err(invalid_input("Too many values"))
@@ -44,7 +44,7 @@ pub fn check_len<V, T: ?Sized>(slice: &[V], val: &T) -> Result<()> {
 
 #[inline(always)]
 pub fn check_len_str<T: ?Sized>(slice: &str, val: &T) -> Result<()> {
-    if slice.as_bytes().len() + 1 /* \0 */ < size_of_val(val) {
+    if slice.as_bytes().len() /* \0 */ < size_of_val(val) {
         Ok(())
     } else {
         Err(invalid_input("String too long"))
@@ -53,7 +53,7 @@ pub fn check_len_str<T: ?Sized>(slice: &str, val: &T) -> Result<()> {
 
 #[inline(always)]
 pub fn safe_set_str<const N: usize>(dst: &mut [u8; N], src: &str) -> Result<()> {
-    check_len_str(src, &dst)?;
+    check_len_str(src, dst)?;
 
     let src = src.as_bytes();
     dst[..src.len()].copy_from_slice(src);
