@@ -90,7 +90,7 @@ impl GpioLineRequest {
 
         request.num_lines = lines.len() as _;
 
-        request.offsets.copy_from_slice(lines);
+        request.offsets[..lines.len()].copy_from_slice(lines);
 
         let config = &mut request.config;
 

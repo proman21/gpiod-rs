@@ -72,7 +72,7 @@ impl GpioHandleRequest {
 
         request.lines = lines.len() as _;
 
-        request.line_offsets.copy_from_slice(lines);
+        request.line_offsets[..lines.len()].copy_from_slice(lines);
 
         request.flags |= match direction {
             Direction::Input => GPIOHANDLE_REQUEST_INPUT,

@@ -56,7 +56,7 @@ pub fn safe_set_str<const N: usize>(dst: &mut [u8; N], src: &str) -> Result<()> 
     check_len_str(src, &dst)?;
 
     let src = src.as_bytes();
-    dst.copy_from_slice(src);
+    dst[..src.len()].copy_from_slice(src);
     dst[src.len()] = 0;
 
     Ok(())
