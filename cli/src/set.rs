@@ -71,9 +71,12 @@ fn main(args: Args) -> anyhow::Result<()> {
         &args.label,
     )?;
 
-    output.set_values(values)?;
+    //output.set_values(values)?;
 
-    println!("GPIO get {} offset {:?}. Values {:?}", chip, lines, values);
+    for value in output.get_values::<gpiod::Values>()? {
+        print!("{}", if value { 1 } else { 0 });
+    }
+    println!("");
 
     Ok(())
 }

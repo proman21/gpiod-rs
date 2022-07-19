@@ -37,12 +37,10 @@ fn main(args: Args) -> anyhow::Result<()> {
         &args.label,
     )?;
 
-    println!(
-        "GPIO get {} offset {:?}. Values {}",
-        chip,
-        args.lines,
-        input.get_values::<gpiod::Values>()?
-    );
+    for value in input.get_values::<gpiod::Values>()? {
+        print!("{}", if value { 1 } else { 0 });
+    }
+    println!("");
 
     Ok(())
 }

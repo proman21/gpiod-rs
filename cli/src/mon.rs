@@ -9,7 +9,7 @@ struct Args {
     active: gpiod::Active,
 
     /// Edge to detect
-    #[structopt(short, long, default_value = "high")]
+    #[structopt(short, long, default_value = "both")]
     edge: gpiod::EdgeDetect,
 
     /// Request label
@@ -36,9 +36,10 @@ fn main(args: Args) -> anyhow::Result<()> {
     let input = chip.request_input(&args.lines, args.active, args.edge, args.bias, &args.label)?;
 
     for event in input {
+        let event = event?;
         println!(
-            "{{ chip: {}, lines: {:?}, event: {} }}",
-            chip, args.lines, event?,
+            "line {}: {}-edge [{:?}]",
+            args.lines[event.line as usize], event.edge, event.time,
         );
     }
 

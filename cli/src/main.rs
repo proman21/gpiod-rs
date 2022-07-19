@@ -71,7 +71,7 @@ enum Cmds {
         active: gpiod::Active,
 
         /// Edge to detect
-        #[structopt(short, long, default_value = "high")]
+        #[structopt(short, long, default_value = "both")]
         edge: gpiod::EdgeDetect,
 
         /// Request label
@@ -139,14 +139,12 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
                 .map(gpiod::Chip::new)
                 .collect::<std::io::Result<Vec<_>>>()?;
 
-            println!("Info for all {} GPIO chips", chips.len());
-
             for index in (0..chips.len()).rev() {
                 let chip = &chips[index];
                 println!("{}", chip);
                 for line in 0..chip.num_lines() {
                     let line_info = chip.line_info(line).unwrap();
-                    println!("\t Line \t {}: \t {}", line, line_info);
+                    println!("\t line \t {}: \t {}", line, line_info);
                 }
             }
         }
@@ -166,12 +164,10 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
 
             let input = chip.request_input(&lines, active, Default::default(), bias, &label)?;
 
-            println!(
-                "GPIO get {} offset {:?}. Values {}",
-                chip,
-                lines,
-                input.get_values::<gpiod::Values>()?
-            );
+            for value in input.get_values::<gpiod::Values>()? {
+                print!("{}", if value { 1 } else { 0 });
+            }
+            println!("");
         }
 
         Cmds::Set {
@@ -203,9 +199,12 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
                 &label,
             )?;
 
-            output.set_values(values)?;
+            //output.set_values(values)?;
 
-            println!("GPIO set {} offset {:?}. Values {:?}", chip, lines, values);
+            for value in output.get_values::<gpiod::Values>()? {
+                print!("{}", if value { 1 } else { 0 });
+            }
+            println!("");
         }
 
         Cmds::Mon {
@@ -225,9 +224,10 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
             let input = chip.request_input(&lines, active, edge, bias, &label)?;
 
             for event in input {
+                let event = event?;
                 println!(
-                    "{{ chip: {}, lines: {:?}, event: {} }}",
-                    chip, lines, event?,
+                    "line {}: {}-edge [{:?}]",
+                    lines[event.line as usize], event.edge, event.time,
                 );
             }
         }

@@ -74,23 +74,29 @@ pub struct LineInfo {
 
 impl fmt::Display for LineInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "\t {}", self.direction)?;
-        if self.used {
-            write!(f, "\t Used")?;
+        if self.name.is_empty() {
+            write!(f, "\t unnamed")?;
         } else {
-            write!(f, "\t Unused")?;
+            write!(f, "\t {:?}", self.name)?;
         }
         if self.consumer.is_empty() {
-            write!(f, "\t Unnamed")?;
+            write!(f, "\t unused")?;
         } else {
-            write!(f, "\t {}", self.consumer)?;
+            write!(f, "\t {:?}", self.consumer)?;
         }
-        write!(f, "\t Active {}", self.active)?;
+        write!(f, "\t {}", self.direction)?;
+        write!(f, "\t active-{}", self.active)?;
+        if !matches!(self.edge, EdgeDetect::Disable) {
+            write!(f, "\t {}-edge", self.edge)?;
+        }
+        if !matches!(self.bias, Bias::Disable) {
+            write!(f, "\t {}", self.edge)?;
+        }
         if !matches!(self.drive, Drive::PushPull) {
             write!(f, "\t {}", self.drive)?;
         }
-        if !matches!(self.edge, EdgeDetect::Disable) {
-            write!(f, "\t Edge {}", self.edge)?;
+        if self.used {
+            write!(f, "\t [used]")?;
         }
         Ok(())
     }
