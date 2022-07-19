@@ -40,12 +40,68 @@ impl LineMap {
     }
 }
 
+/// The information of a specific GPIO line
+///
+/// Can be obtained through the [Chip::line_info].
+pub struct LineInfo {
+    /// GPIO line direction
+    pub direction: Direction,
+
+    /// GPIO line active state
+    pub active: Active,
+
+    /// GPIO line edge detection
+    pub edge: EdgeDetect,
+
+    /// GPIO line usage status
+    ///
+    /// `true` means that kernel uses this line for some purposes.
+    pub used: bool,
+
+    /// GPIO line input bias
+    pub bias: Bias,
+
+    /// GPIO line output drive mode
+    pub drive: Drive,
+
+    /// GPIO line name
+    pub name: String,
+
+    /// GPIO line consumer namegs
+    pub consumer: String,
+}
+
+impl fmt::Display for LineInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "\t {}", self.direction)?;
+        if self.used {
+            write!(f, "\t Used")?;
+        } else {
+            write!(f, "\t Unused")?;
+        }
+        if self.consumer.is_empty() {
+            write!(f, "\t Unnamed")?;
+        } else {
+            write!(f, "\t {}", self.consumer)?;
+        }
+        write!(f, "\t Active {}", self.active)?;
+        if !matches!(self.drive, Drive::PushPull) {
+            write!(f, "\t {}", self.drive)?;
+        }
+        if !matches!(self.edge, EdgeDetect::Disable) {
+            write!(f, "\t Edge {}", self.edge)?;
+        }
+        Ok(())
+    }
+}
+
 /// Line values
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[repr(C)]
 pub struct Values {
     /// Logic values of lines
     pub bits: u64,
+
     /// Mask of lines to get or set
     pub mask: u64,
 }

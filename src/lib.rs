@@ -25,8 +25,8 @@ pub(crate) use std::{
     time::SystemTime as Time,
 };
 pub use types::{
-    Active, Bias, BitId, Direction, Drive, Edge, EdgeDetect, Event, LineId, LineMap, Values,
-    ValuesIter,
+    Active, Bias, BitId, Direction, Drive, Edge, EdgeDetect, Event, LineId, LineInfo, LineMap,
+    Values, ValuesIter,
 };
 use utils::*;
 
@@ -303,86 +303,6 @@ impl Outputs {
     #[cfg(any(feature = "tokio", feature = "async-std"))]
     pub async fn read_event_async(&mut self) -> Result<Event> {
         self.0.read_event_async().await
-    }
-}
-
-/// The information of a specific GPIO line
-///
-/// Can be obtained through the [Chip::line_info].
-pub struct LineInfo {
-    direction: Direction,
-    active: Active,
-    edge: EdgeDetect,
-    used: bool,
-    bias: Bias,
-    drive: Drive,
-    name: String,
-    consumer: String,
-}
-
-impl fmt::Display for LineInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "\t {}", self.direction)?;
-        if self.used {
-            write!(f, "\t Used")?;
-        } else {
-            write!(f, "\t Unused")?;
-        }
-        if self.consumer.is_empty() {
-            write!(f, "\t Unnamed")?;
-        } else {
-            write!(f, "\t {}", self.consumer)?;
-        }
-        write!(f, "\t Active {}", self.active)?;
-        if !matches!(self.drive, Drive::PushPull) {
-            write!(f, "\t {}", self.drive)?;
-        }
-        if !matches!(self.edge, EdgeDetect::Disable) {
-            write!(f, "\t Edge {}", self.edge)?;
-        }
-        Ok(())
-    }
-}
-
-impl LineInfo {
-    /// Get direction of line
-    pub fn direction(&self) -> Direction {
-        self.direction
-    }
-
-    /// Get active state of line
-    pub fn active(&self) -> Active {
-        self.active
-    }
-
-    /// Get edge detect of line
-    pub fn edge(&self) -> EdgeDetect {
-        self.edge
-    }
-
-    /// Get input bias of line
-    pub fn bias(&self) -> Bias {
-        self.bias
-    }
-
-    /// Get output mode of line
-    pub fn drive(&self) -> Drive {
-        self.drive
-    }
-
-    /// Is line used
-    pub fn used(&self) -> bool {
-        self.used
-    }
-
-    /// Get line name
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    /// Get line consumer
-    pub fn consumer(&self) -> &str {
-        &self.consumer
     }
 }
 
