@@ -21,7 +21,7 @@ pub const GPIO_LINE_FLAG_BIAS_DISABLED: u64 = 1 << 10;
 
 // Line attr ids
 //pub const GPIO_LINE_ATTR_ID_FLAGS: u32 = 1;
-//pub const GPIO_LINE_ATTR_ID_OUTPUT_VALUES: u32 = 2;
+pub const GPIO_LINE_ATTR_ID_OUTPUT_VALUES: u32 = 2;
 //pub const GPIO_LINE_ATTR_ID_DEBOUNCE: u32 = 3;
 
 // Line changed reason
@@ -36,9 +36,9 @@ pub const GPIO_LINE_EVENT_FALLING_EDGE: u32 = 2;
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub union GpioLineAttrVal {
-    flags: u64,
-    values: u64,
-    debounce_period_us: u32,
+    pub flags: u64,
+    pub values: u64,
+    pub debounce_period_us: u32,
 }
 
 impl Default for GpioLineAttrVal {

@@ -67,6 +67,7 @@ fn main(args: Args) -> anyhow::Result<()> {
         Default::default(),
         args.bias,
         args.drive,
+        Some(values),
         &args.label,
     )?;
 
