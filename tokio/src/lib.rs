@@ -2,6 +2,7 @@
 
 use std::{
     fmt, io,
+    ops::Deref,
     os::unix::{
         fs::{FileTypeExt, MetadataExt},
         io::{AsRawFd, FromRawFd, RawFd},
@@ -12,11 +13,11 @@ use std::{
     task::{Context, Poll},
 };
 
-use gpiod_core::{invalid_input, major, minor, ChipInfo, Error, LineValues, Result};
+use gpiod_core::{invalid_input, major, minor, Error, Internal, Result};
 
 pub use gpiod_core::{
-    Active, Bias, BitId, Direction, Drive, Edge, EdgeDetect, Event, LineId, LineInfo, Values,
-    ValuesIter,
+    Active, Bias, BitId, ChipInfo, Direction, Drive, Edge, EdgeDetect, Event, LineId, LineInfo,
+    Values, ValuesInfo, ValuesIter,
 };
 
 use tokio::{
@@ -109,35 +110,33 @@ async fn read_event(index: &gpiod_core::LineMap, file: &mut File) -> Result<Even
 ///
 /// Use [Chip::request_input] to configure specific GPIO lines for input.
 pub struct Inputs {
-    values: Arc<LineValues>,
+    info: Arc<Internal<ValuesInfo>>,
     // wrap file to call close on drop
     file: File,
 }
 
+impl Deref for Inputs {
+    type Target = ValuesInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.info
+    }
+}
+
 impl Inputs {
-    /// Get associated chip name
-    pub fn chip_name(&self) -> &str {
-        &self.values.chip_name
-    }
-
-    /// Get offsets of requested lines
-    pub fn lines(&self) -> &[LineId] {
-        &self.values.lines
-    }
-
     /// Get the value of GPIO lines
     ///
     /// The values can only be read if the lines have previously been requested as either inputs
     /// using the [Chip::request_input] method, or outputs using the [Chip::request_output].
     pub async fn get_values<T: From<Values>>(&self) -> Result<T> {
         let fd = self.file.as_raw_fd();
-        let vals = self.values.clone();
-        Ok(asyncify(move || vals.get_values(fd)).await?.into())
+        let info = self.info.clone();
+        Ok(asyncify(move || info.get_values(fd)).await?.into())
     }
 
     /// Read GPIO events synchronously
     pub async fn read_event(&mut self) -> Result<Event> {
-        read_event(&self.values.index, &mut self.file).await
+        read_event(&self.info.index(), &mut self.file).await
     }
 }
 
@@ -148,30 +147,28 @@ impl Inputs {
 /// The values also can be read.
 /// Specifically this may be useful to get actual value when lines driven as open drain or source.
 pub struct Outputs {
-    values: Arc<LineValues>,
+    info: Arc<Internal<ValuesInfo>>,
     // wrap file to call close on drop
     file: File,
 }
 
+impl Deref for Outputs {
+    type Target = ValuesInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.info
+    }
+}
+
 impl Outputs {
-    /// Get associated chip name
-    pub fn chip_name(&self) -> &str {
-        &self.values.chip_name
-    }
-
-    /// Get offsets of requested lines
-    pub fn lines(&self) -> &[LineId] {
-        &self.values.lines
-    }
-
     /// Get the value of GPIO lines
     ///
     /// The values can only be read if the lines have previously been requested as either inputs
     /// using the [Chip::request_input] method, or outputs using the [Chip::request_output].
     pub async fn get_values<T: From<Values>>(&self) -> Result<T> {
         let fd = self.file.as_raw_fd();
-        let vals = self.values.clone();
-        Ok(asyncify(move || vals.get_values(fd)).await?.into())
+        let info = self.info.clone();
+        Ok(asyncify(move || info.get_values(fd)).await?.into())
     }
 
     /// Set the value of GPIO lines
@@ -181,13 +178,13 @@ impl Outputs {
     pub async fn set_values(&self, values: impl Into<Values>) -> Result<()> {
         let values = values.into();
         let fd = self.file.as_raw_fd();
-        let vals = self.values.clone();
-        asyncify(move || vals.set_values(fd, values)).await
+        let info = self.info.clone();
+        asyncify(move || info.set_values(fd, values)).await
     }
 
     /// Read GPIO events synchronously
     pub async fn read_event(&mut self) -> Result<Event> {
-        read_event(&self.values.index, &mut self.file).await
+        read_event(&self.info.index(), &mut self.file).await
     }
 }
 
@@ -196,9 +193,17 @@ impl Outputs {
 /// It can be used to get information about the chip and lines and
 /// to request GPIO lines that can be used as inputs or outputs.
 pub struct Chip {
-    info: Arc<ChipInfo>,
+    info: Arc<Internal<ChipInfo>>,
     // wrap file to call close on drop
     file: File,
+}
+
+impl Deref for Chip {
+    type Target = ChipInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.info
+    }
 }
 
 impl fmt::Display for Chip {
@@ -207,7 +212,7 @@ impl fmt::Display for Chip {
     }
 }
 
-pub const O_NONBLOCK: i32 = 2048;
+const O_NONBLOCK: i32 = 2048;
 
 impl Chip {
     /// Create a new GPIO chip interface using path
@@ -226,7 +231,7 @@ impl Chip {
         Chip::check_device(path).await?;
 
         let fd = file.as_raw_fd();
-        let info = Arc::new(asyncify(move || ChipInfo::from_fd(fd)).await?);
+        let info = Arc::new(asyncify(move || Internal::<ChipInfo>::from_fd(fd)).await?);
 
         Ok(Chip { info, file })
     }
@@ -300,7 +305,7 @@ impl Chip {
         let fd = self.file.as_raw_fd();
         let info = self.info.clone();
 
-        let (values, fd) = asyncify(move || {
+        let (info, fd) = asyncify(move || {
             info.request_lines(
                 fd,
                 &lines,
@@ -316,9 +321,9 @@ impl Chip {
         .await?;
 
         let file = File::from_fd(fd)?;
-        let values = Arc::new(values);
+        let info = Arc::new(info);
 
-        Ok(Outputs { values, file })
+        Ok(Outputs { info, file })
     }
 
     /// Request the GPIO chip to configure the lines passed as argument as inputs
@@ -337,7 +342,7 @@ impl Chip {
         let fd = self.file.as_raw_fd();
         let info = self.info.clone();
 
-        let (values, fd) = asyncify(move || {
+        let (info, fd) = asyncify(move || {
             info.request_lines(
                 fd,
                 &lines,
@@ -353,23 +358,8 @@ impl Chip {
         .await?;
 
         let file = File::from_fd(fd)?;
-        let values = Arc::new(values);
+        let info = Arc::new(info);
 
-        Ok(Inputs { values, file })
-    }
-
-    /// Get the GPIO chip name
-    pub fn name(&self) -> &str {
-        &self.info.name
-    }
-
-    /// Get the GPIO chip label
-    pub fn label(&self) -> &str {
-        &self.info.label
-    }
-
-    /// Get the total number of lines of the GPIO chip
-    pub fn num_lines(&self) -> LineId {
-        self.info.num_lines
+        Ok(Inputs { info, file })
     }
 }

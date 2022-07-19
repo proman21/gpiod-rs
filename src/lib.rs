@@ -4,6 +4,7 @@ use std::{
     fmt, fs,
     fs::{File, OpenOptions},
     io::Read,
+    ops::Deref,
     os::unix::{
         fs::{FileTypeExt, MetadataExt},
         io::{AsRawFd, FromRawFd},
@@ -11,11 +12,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use gpiod_core::{invalid_input, major, minor, ChipInfo, LineValues, Result};
+use gpiod_core::{invalid_input, major, minor, Internal, Result};
 
 pub use gpiod_core::{
-    Active, Bias, BitId, Direction, Drive, Edge, EdgeDetect, Event, LineId, LineInfo, Values,
-    ValuesIter,
+    Active, Bias, BitId, ChipInfo, Direction, Drive, Edge, EdgeDetect, Event, LineId, LineInfo,
+    Values, ValuesInfo, ValuesIter,
 };
 
 #[cfg(not(feature = "v2"))]
@@ -36,35 +37,31 @@ fn read_event(index: &gpiod_core::LineMap, file: &mut File) -> Result<Event> {
 ///
 /// Use [Chip::request_input] to configure specific GPIO lines for input.
 pub struct Inputs {
-    values: LineValues,
+    info: Internal<ValuesInfo>,
     // wrap file to call close on drop
     file: File,
 }
 
+impl Deref for Inputs {
+    type Target = ValuesInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.info
+    }
+}
+
 impl Inputs {
-    /// Get associated chip name
-    pub fn chip_name(&self) -> &str {
-        &self.values.chip_name
-    }
-
-    /// Get offsets of requested lines
-    pub fn lines(&self) -> &[LineId] {
-        &self.values.lines
-    }
-
     /// Get the value of GPIO lines
     ///
     /// The values can only be read if the lines have previously been requested as either inputs
     /// using the [Chip::request_input] method, or outputs using the [Chip::request_output].
     pub fn get_values<T: From<Values>>(&self) -> Result<T> {
-        self.values
-            .get_values(self.file.as_raw_fd())
-            .map(From::from)
+        self.info.get_values(self.file.as_raw_fd()).map(From::from)
     }
 
     /// Read GPIO events
     pub fn read_event(&mut self) -> Result<Event> {
-        read_event(&self.values.index, &mut self.file)
+        read_event(&self.info.index(), &mut self.file)
     }
 }
 
@@ -75,30 +72,26 @@ impl Inputs {
 /// The values also can be read.
 /// Specifically this may be useful to get actual value when lines driven as open drain or source.
 pub struct Outputs {
-    values: LineValues,
+    info: Internal<ValuesInfo>,
     // wrap file to call close on drop
     file: File,
 }
 
+impl Deref for Outputs {
+    type Target = ValuesInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.info
+    }
+}
+
 impl Outputs {
-    /// Get associated chip name
-    pub fn chip_name(&self) -> &str {
-        &self.values.chip_name
-    }
-
-    /// Get offsets of requested lines
-    pub fn lines(&self) -> &[LineId] {
-        &self.values.lines
-    }
-
     /// Get the value of GPIO lines
     ///
     /// The values can only be read if the lines have previously been requested as either inputs
     /// using the [Chip::request_input] method, or outputs using the [Chip::request_output].
     pub fn get_values<T: From<Values>>(&self) -> Result<T> {
-        self.values
-            .get_values(self.file.as_raw_fd())
-            .map(From::from)
+        self.info.get_values(self.file.as_raw_fd()).map(From::from)
     }
 
     /// Set the value of GPIO lines
@@ -106,12 +99,12 @@ impl Outputs {
     /// The value can only be set if the lines have previously been requested as outputs
     /// using the [Chip::request_output].
     pub fn set_values(&self, values: impl Into<Values>) -> Result<()> {
-        self.values.set_values(self.file.as_raw_fd(), values.into())
+        self.info.set_values(self.file.as_raw_fd(), values.into())
     }
 
     /// Read GPIO events
     pub fn read_event(&mut self) -> Result<Event> {
-        read_event(&self.values.index, &mut self.file)
+        read_event(&self.info.index(), &mut self.file)
     }
 }
 
@@ -120,9 +113,17 @@ impl Outputs {
 /// It can be used to get information about the chip and lines and
 /// to request GPIO lines that can be used as inputs or outputs.
 pub struct Chip {
-    info: ChipInfo,
+    info: Internal<ChipInfo>,
     // wrap file to call close on drop
     file: File,
+}
+
+impl Deref for Chip {
+    type Target = ChipInfo;
+
+    fn deref(&self) -> &Self::Target {
+        &self.info
+    }
 }
 
 impl fmt::Display for Chip {
@@ -141,7 +142,7 @@ impl Chip {
         Chip::check_device(path)?;
 
         Ok(Chip {
-            info: ChipInfo::from_fd(file.as_raw_fd())?,
+            info: Internal::<ChipInfo>::from_fd(file.as_raw_fd())?,
             file,
         })
     }
@@ -199,7 +200,7 @@ impl Chip {
         values: Option<impl Into<Values>>,
         label: impl AsRef<str>,
     ) -> Result<Outputs> {
-        let (values, fd) = self.info.request_lines(
+        let (info, fd) = self.info.request_lines(
             self.file.as_raw_fd(),
             lines.as_ref(),
             Direction::Output,
@@ -213,7 +214,7 @@ impl Chip {
 
         let file = unsafe { File::from_raw_fd(fd) };
 
-        Ok(Outputs { values, file })
+        Ok(Outputs { info, file })
     }
 
     /// Request the GPIO chip to configure the lines passed as argument as inputs
@@ -227,7 +228,7 @@ impl Chip {
         bias: Bias,
         label: impl AsRef<str>,
     ) -> Result<Inputs> {
-        let (values, fd) = self.info.request_lines(
+        let (info, fd) = self.info.request_lines(
             self.file.as_raw_fd(),
             lines.as_ref(),
             Direction::Output,
@@ -241,21 +242,6 @@ impl Chip {
 
         let file = unsafe { File::from_raw_fd(fd) };
 
-        Ok(Inputs { values, file })
-    }
-
-    /// Get the GPIO chip name
-    pub fn name(&self) -> &str {
-        &self.info.name
-    }
-
-    /// Get the GPIO chip label
-    pub fn label(&self) -> &str {
-        &self.info.label
-    }
-
-    /// Get the total number of lines of the GPIO chip
-    pub fn num_lines(&self) -> LineId {
-        self.info.num_lines
+        Ok(Inputs { info, file })
     }
 }

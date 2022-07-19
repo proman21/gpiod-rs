@@ -68,7 +68,7 @@ pub struct LineInfo {
     /// GPIO line name
     pub name: String,
 
-    /// GPIO line consumer namegs
+    /// GPIO line consumer name
     pub consumer: String,
 }
 

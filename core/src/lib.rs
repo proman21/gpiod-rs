@@ -27,31 +27,73 @@ macro_rules! unsafe_call {
     };
 }
 
-pub struct LineValues {
-    pub chip_name: String,
-    pub consumer: String,
-    pub lines: Vec<LineId>,
-    pub index: LineMap,
-}
+/// Wrapper to hide internals
+#[derive(Clone, Copy, Default)]
+pub struct Internal<T>(T);
 
-impl fmt::Display for LineValues {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} [{}] {:?}", self.chip_name, self.consumer, self.lines)
+impl<T> core::ops::Deref for Internal<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-impl LineValues {
-    pub fn new(chip_name: &str, consumer: &str, lines: &[LineId]) -> Self {
+impl<T> core::ops::DerefMut for Internal<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+/// GPIO lines values interface info
+pub struct ValuesInfo {
+    chip_name: String,
+    label: String,
+    lines: Vec<LineId>,
+    index: LineMap,
+}
+
+impl fmt::Display for ValuesInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} [{}] {:?}", self.chip_name, self.label, self.lines)
+    }
+}
+
+impl ValuesInfo {
+    /// Get associated chip name
+    pub fn chip_name(&self) -> &str {
+        &self.chip_name
+    }
+
+    /// Get customer label
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    /// Get offsets of requested lines
+    pub fn lines(&self) -> &[LineId] {
+        &self.lines
+    }
+
+    /// Get offset to bit position mapping
+    pub fn index(&self) -> &LineMap {
+        &self.index
+    }
+}
+
+impl Internal<ValuesInfo> {
+    fn new(chip_name: &str, label: &str, lines: &[LineId]) -> Self {
         let chip_name = chip_name.into();
-        let consumer = consumer.into();
+        let label = label.into();
         let index = LineMap::new(lines);
         let lines = lines.to_owned();
-        Self {
+
+        Self(ValuesInfo {
             chip_name,
-            consumer,
+            label,
             lines,
             index,
-        }
+        })
     }
 
     pub fn get_values(&self, fd: RawFd) -> Result<Values> {
@@ -95,14 +137,11 @@ impl LineValues {
     }
 }
 
-/// A Linux chardev GPIO chip interface
-///
-/// It can be used to get information about the chip and lines and
-/// to request GPIO lines that can be used as inputs or outputs.
+/// GPIO chip interface info
 pub struct ChipInfo {
-    pub name: String,
-    pub label: String,
-    pub num_lines: LineId,
+    name: String,
+    label: String,
+    num_lines: LineId,
 }
 
 impl fmt::Display for ChipInfo {
@@ -116,16 +155,33 @@ impl fmt::Display for ChipInfo {
 }
 
 impl ChipInfo {
+    /// Get chip name
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Get chip label
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    /// Get number of GPIO lines
+    pub fn num_lines(&self) -> LineId {
+        self.num_lines
+    }
+}
+
+impl Internal<ChipInfo> {
     pub fn from_fd(fd: RawFd) -> Result<Self> {
         let mut info = raw::GpioChipInfo::default();
 
         unsafe_call!(raw::gpio_get_chip_info(fd, &mut info))?;
 
-        Ok(Self {
+        Ok(Self(ChipInfo {
             name: safe_get_str(&info.name)?.into(),
             label: safe_get_str(&info.label)?.into(),
             num_lines: info.lines,
-        })
+        }))
     }
 
     /// Request the info of a specific GPIO line.
@@ -170,7 +226,7 @@ impl ChipInfo {
         drive: Option<Drive>,
         values: Option<Values>,
         label: &str,
-    ) -> Result<(LineValues, RawFd)> {
+    ) -> Result<(Internal<ValuesInfo>, RawFd)> {
         #[cfg(not(feature = "v2"))]
         let fd = {
             let mut request =
@@ -200,6 +256,6 @@ impl ChipInfo {
             request.fd
         };
 
-        Ok((LineValues::new(&self.name, label, lines), fd))
+        Ok((Internal::<ValuesInfo>::new(&self.name, label, lines), fd))
     }
 }
