@@ -85,6 +85,14 @@ impl Deref for Outputs {
     }
 }
 
+impl Iterator for Inputs {
+    type Item = Result<Event>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.read_event())
+    }
+}
+
 impl Outputs {
     /// Get the value of GPIO lines
     ///
@@ -105,6 +113,14 @@ impl Outputs {
     /// Read GPIO events
     pub fn read_event(&mut self) -> Result<Event> {
         read_event(&self.info.index(), &mut self.file)
+    }
+}
+
+impl Iterator for Outputs {
+    type Item = Result<Event>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(self.read_event())
     }
 }
 
