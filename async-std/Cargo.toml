@@ -5,8 +5,8 @@ version = "0.2.0"
 authors = ["K. <kayo@illumium.org>"]
 license = "MIT"
 readme = "README.md"
-categories = ["os", "os::linux-apis"]
-keywords = ["libgpiod", "GPIO", "Linux", "chardev", "ioctl"]
+categories = ["os", "os::linux-apis", "asynchronous"]
+keywords = ["libgpiod", "GPIO", "Linux", "async", "async-std"]
 edition = "2021"
 
 [dependencies.gpiod-core]
@@ -23,6 +23,3 @@ version = "1"
 [features]
 default = ["v2"]
 v2 = ["gpiod-core/v2"]
-
-[package.metadata.docs.rs]
-features = ["v2"]

@@ -17,6 +17,3 @@ features = ["ioctl"]
 [features]
 default = ["v2"]
 v2 = []
-
-[package.metadata.docs.rs]
-features = ["v2"]
