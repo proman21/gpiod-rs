@@ -25,6 +25,14 @@ path = "src/get.rs"
 name = "gpioset-rs"
 path = "src/set.rs"
 
+[[bin]]
+name = "gpiomon-rs"
+path = "src/mon.rs"
+
+[[bin]]
+name = "gpiod-rs"
+path = "src/main.rs"
+
 [dependencies.gpiod]
 path = ".."
 

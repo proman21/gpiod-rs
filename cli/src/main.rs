@@ -59,6 +59,33 @@ enum Cmds {
         #[structopt()]
         line_values: Vec<LineValue>,
     },
+
+    /// Monitor values on GPIO lines
+    Mon {
+        /// Input bias
+        #[structopt(short, long, default_value = "disable")]
+        bias: gpiod::Bias,
+
+        /// Active state
+        #[structopt(short, long, default_value = "high")]
+        active: gpiod::Active,
+
+        /// Edge to detect
+        #[structopt(short, long, default_value = "high")]
+        edge: gpiod::EdgeDetect,
+
+        /// Request label
+        #[structopt(short, long, default_value = "gpioset")]
+        label: String,
+
+        /// GPIO chip
+        #[structopt()]
+        chip: std::path::PathBuf,
+
+        /// GPIO lines
+        #[structopt()]
+        lines: Vec<gpiod::LineId>,
+    },
 }
 
 struct LineValue {
@@ -178,7 +205,31 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
 
             output.set_values(values)?;
 
-            println!("GPIO get {} offset {:?}. Values {:?}", chip, lines, values);
+            println!("GPIO set {} offset {:?}. Values {:?}", chip, lines, values);
+        }
+
+        Cmds::Mon {
+            edge,
+            bias,
+            active,
+            label,
+            chip,
+            lines,
+        } => {
+            if lines.len() > gpiod::Values::MAX {
+                anyhow::bail!("Too many lines");
+            }
+
+            let chip = gpiod::Chip::new(&chip)?;
+
+            let input = chip.request_input(&lines, active, edge, bias, &label)?;
+
+            for event in input {
+                println!(
+                    "{{ chip: {}, lines: {:?}, event: {} }}",
+                    chip, lines, event?,
+                );
+            }
         }
     }
 
