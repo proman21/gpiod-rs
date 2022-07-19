@@ -18,11 +18,11 @@ use std::{
         prelude::*,
     },
     path::{Path, PathBuf},
-    time::{Duration, SystemTime},
 };
 
 pub(crate) use std::{
     io::{Error, Result},
+    time::SystemTime as Time,
 };
 pub use types::{
     Active, Bias, BitId, Direction, Drive, Edge, EdgeDetect, Event, LineId, LineMap, Values,

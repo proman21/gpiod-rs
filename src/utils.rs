@@ -1,5 +1,10 @@
-use std::{io, mem::size_of_val, str};
 use crate::{Error, Result, Time};
+use std::{io, mem::size_of_val, str, time};
+
+#[inline(always)]
+pub fn time_from_nanos(nanos: u64) -> Time {
+    Time::UNIX_EPOCH + time::Duration::from_nanos(nanos)
+}
 
 #[inline(always)]
 pub fn is_set<T>(flags: T, flag: T) -> bool
