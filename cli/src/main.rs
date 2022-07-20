@@ -20,9 +20,9 @@ enum Cmds {
         #[structopt(short, long, default_value = "high")]
         active: gpiod::Active,
 
-        /// Request label
-        #[structopt(short, long, default_value = "gpioset")]
-        label: String,
+        /// Consumer string
+        #[structopt(short, long, default_value = "gpioget")]
+        consumer: String,
 
         /// GPIO chip
         #[structopt()]
@@ -47,9 +47,9 @@ enum Cmds {
         #[structopt(short, long, default_value = "push-pull")]
         drive: gpiod::Drive,
 
-        /// Request label
+        /// Consumer string
         #[structopt(short, long, default_value = "gpioset")]
-        label: String,
+        consumer: String,
 
         /// GPIO chip
         #[structopt()]
@@ -74,9 +74,9 @@ enum Cmds {
         #[structopt(short, long, default_value = "both")]
         edge: gpiod::EdgeDetect,
 
-        /// Request label
-        #[structopt(short, long, default_value = "gpioset")]
-        label: String,
+        /// Consumer string
+        #[structopt(short, long, default_value = "gpiomon")]
+        consumer: String,
 
         /// GPIO chip
         #[structopt()]
@@ -152,7 +152,7 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
         Cmds::Get {
             bias,
             active,
-            label,
+            consumer,
             chip,
             lines,
         } => {
@@ -162,7 +162,12 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
 
             let chip = gpiod::Chip::new(&chip)?;
 
-            let input = chip.request_input(&lines, active, Default::default(), bias, &label)?;
+            let input = chip.request_lines(
+                gpiod::Options::input(&lines)
+                    .active(active)
+                    .bias(bias)
+                    .consumer(&consumer),
+            )?;
 
             for value in input.get_values::<gpiod::Values>()? {
                 print!("{}", if value { 1 } else { 0 });
@@ -174,7 +179,7 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
             bias,
             active,
             drive,
-            label,
+            consumer,
             chip,
             line_values,
         } => {
@@ -189,14 +194,13 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
                 .map(|pair| (pair.line, pair.value))
                 .unzip();
 
-            let output = chip.request_output(
-                &lines,
-                active,
-                Default::default(),
-                bias,
-                drive,
-                Some(values),
-                &label,
+            let output = chip.request_lines(
+                gpiod::Options::output(&lines)
+                    .active(active)
+                    .bias(bias)
+                    .drive(drive)
+                    .values(values)
+                    .consumer(&consumer),
             )?;
 
             //output.set_values(values)?;
@@ -211,7 +215,7 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
             edge,
             bias,
             active,
-            label,
+            consumer,
             chip,
             lines,
         } => {
@@ -221,7 +225,13 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
 
             let chip = gpiod::Chip::new(&chip)?;
 
-            let input = chip.request_input(&lines, active, edge, bias, &label)?;
+            let input = chip.request_lines(
+                gpiod::Options::input(&lines)
+                    .active(active)
+                    .edge(edge)
+                    .bias(bias)
+                    .consumer(&consumer),
+            )?;
 
             for event in input {
                 let event = event?;

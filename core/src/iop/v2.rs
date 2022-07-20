@@ -82,7 +82,7 @@ impl GpioLineRequest {
         bias: Option<Bias>,
         drive: Option<Drive>,
         values: Option<Values>,
-        label: &str,
+        consumer: &str,
     ) -> Result<Self> {
         let mut request = GpioLineRequest::default();
 
@@ -96,19 +96,25 @@ impl GpioLineRequest {
 
         config.flags |= match direction {
             Direction::Input => GPIO_LINE_FLAG_INPUT,
-            Direction::Output => GPIO_LINE_FLAG_INPUT | GPIO_LINE_FLAG_OUTPUT,
+            // Mixing input and output flags is not allowed
+            // see https://github.com/torvalds/linux/blob/v5.18/drivers/gpio/gpiolib-cdev.c#L895-L901
+            Direction::Output => GPIO_LINE_FLAG_OUTPUT,
         };
 
         if matches!(active, Active::Low) {
             config.flags |= GPIO_LINE_FLAG_ACTIVE_LOW;
         }
 
-        if let Some(edge) = edge {
-            match edge {
-                EdgeDetect::Rising => config.flags |= GPIO_LINE_FLAG_EDGE_RISING,
-                EdgeDetect::Falling => config.flags |= GPIO_LINE_FLAG_EDGE_FALLING,
-                EdgeDetect::Both => config.flags |= GPIO_LINE_FLAG_EDGE_BOTH,
-                _ => {}
+        if matches!(direction, Direction::Input) {
+            // Set edge flags is valid only for input
+            // see https://github.com/torvalds/linux/blob/v5.18/drivers/gpio/gpiolib-cdev.c#L903-L906
+            if let Some(edge) = edge {
+                match edge {
+                    EdgeDetect::Rising => config.flags |= GPIO_LINE_FLAG_EDGE_RISING,
+                    EdgeDetect::Falling => config.flags |= GPIO_LINE_FLAG_EDGE_FALLING,
+                    EdgeDetect::Both => config.flags |= GPIO_LINE_FLAG_EDGE_BOTH,
+                    _ => {}
+                }
             }
         }
 
@@ -120,15 +126,17 @@ impl GpioLineRequest {
             }
         }
 
-        if let Some(drive) = drive {
-            match drive {
-                Drive::OpenDrain => config.flags |= GPIO_LINE_FLAG_OPEN_DRAIN,
-                Drive::OpenSource => config.flags |= GPIO_LINE_FLAG_OPEN_SOURCE,
-                _ => (),
-            }
-        }
-
         if matches!(direction, Direction::Output) {
+            // Set drive flags is valid only for output
+            // see https://github.com/torvalds/linux/blob/v5.18/drivers/gpio/gpiolib-cdev.c#L917-L920
+            if let Some(drive) = drive {
+                match drive {
+                    Drive::OpenDrain => config.flags |= GPIO_LINE_FLAG_OPEN_DRAIN,
+                    Drive::OpenSource => config.flags |= GPIO_LINE_FLAG_OPEN_SOURCE,
+                    _ => (),
+                }
+            }
+
             if let Some(values) = values {
                 config.num_attrs = 1;
                 let attr = &mut config.attrs[0];
@@ -138,7 +146,7 @@ impl GpioLineRequest {
             }
         }
 
-        safe_set_str(&mut request.consumer, label)?;
+        safe_set_str(&mut request.consumer, consumer)?;
 
         Ok(request)
     }

@@ -64,7 +64,7 @@ impl GpioHandleRequest {
         active: Active,
         bias: Option<Bias>,
         drive: Option<Drive>,
-        label: &str,
+        consumer: &str,
     ) -> Result<Self> {
         let mut request = GpioHandleRequest::default();
 
@@ -76,7 +76,9 @@ impl GpioHandleRequest {
 
         request.flags |= match direction {
             Direction::Input => GPIOHANDLE_REQUEST_INPUT,
-            Direction::Output => GPIOHANDLE_REQUEST_INPUT | GPIOHANDLE_REQUEST_OUTPUT,
+            // Mixing input and output flags is not allowed
+            // see https://github.com/torvalds/linux/blob/v5.18/drivers/gpio/gpiolib-cdev.c#L92-L98
+            Direction::Output => GPIOHANDLE_REQUEST_OUTPUT,
         };
 
         if matches!(active, Active::Low) {
@@ -91,15 +93,19 @@ impl GpioHandleRequest {
             };
         }
 
-        if let Some(drive) = drive {
-            match drive {
-                Drive::OpenDrain => request.flags |= GPIOHANDLE_REQUEST_OPEN_DRAIN,
-                Drive::OpenSource => request.flags |= GPIOHANDLE_REQUEST_OPEN_SOURCE,
-                _ => (),
+        if matches!(direction, Direction::Output) {
+            // Set drive flags is valid only for output
+            // see https://github.com/torvalds/linux/blob/v5.18/drivers/gpio/gpiolib-cdev.c#L109-L113
+            if let Some(drive) = drive {
+                match drive {
+                    Drive::OpenDrain => request.flags |= GPIOHANDLE_REQUEST_OPEN_DRAIN,
+                    Drive::OpenSource => request.flags |= GPIOHANDLE_REQUEST_OPEN_SOURCE,
+                    _ => (),
+                }
             }
         }
 
-        safe_set_str(&mut request.consumer_label, label)?;
+        safe_set_str(&mut request.consumer_label, consumer)?;
 
         Ok(request)
     }

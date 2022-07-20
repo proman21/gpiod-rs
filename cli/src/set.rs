@@ -12,9 +12,9 @@ struct Args {
     #[structopt(short, long, default_value = "push-pull")]
     drive: gpiod::Drive,
 
-    /// Request label
+    /// Consumer string
     #[structopt(short, long, default_value = "gpioset")]
-    label: String,
+    consumer: String,
 
     /// GPIO chip
     #[structopt()]
@@ -61,14 +61,13 @@ fn main(args: Args) -> anyhow::Result<()> {
         .map(|pair| (pair.line, pair.value))
         .unzip();
 
-    let output = chip.request_output(
-        &lines,
-        args.active,
-        Default::default(),
-        args.bias,
-        args.drive,
-        Some(values),
-        &args.label,
+    let output = chip.request_lines(
+        gpiod::Options::output(&lines)
+            .active(args.active)
+            .bias(args.bias)
+            .drive(args.drive)
+            .values(values)
+            .consumer(&args.consumer),
     )?;
 
     //output.set_values(values)?;

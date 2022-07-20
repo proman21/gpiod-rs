@@ -12,9 +12,9 @@ struct Args {
     #[structopt(short, long, default_value = "both")]
     edge: gpiod::EdgeDetect,
 
-    /// Request label
-    #[structopt(short, long, default_value = "gpioset")]
-    label: String,
+    /// Consumer string
+    #[structopt(short, long, default_value = "gpiomon")]
+    consumer: String,
 
     /// GPIO chip
     #[structopt()]
@@ -33,7 +33,13 @@ fn main(args: Args) -> anyhow::Result<()> {
 
     let chip = gpiod::Chip::new(&args.chip)?;
 
-    let input = chip.request_input(&args.lines, args.active, args.edge, args.bias, &args.label)?;
+    let input = chip.request_lines(
+        gpiod::Options::input(&args.lines)
+            .active(args.active)
+            .edge(args.edge)
+            .bias(args.bias)
+            .consumer(&args.consumer),
+    )?;
 
     for event in input {
         let event = event?;

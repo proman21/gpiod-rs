@@ -8,9 +8,9 @@ struct Args {
     #[structopt(short, long, default_value = "high")]
     active: gpiod::Active,
 
-    /// Request label
-    #[structopt(short, long, default_value = "gpioset")]
-    label: String,
+    /// Consumer string
+    #[structopt(short, long, default_value = "gpioget")]
+    consumer: String,
 
     /// GPIO chip
     #[structopt()]
@@ -29,12 +29,11 @@ fn main(args: Args) -> anyhow::Result<()> {
 
     let chip = gpiod::Chip::new(&args.chip)?;
 
-    let input = chip.request_input(
-        &args.lines,
-        args.active,
-        Default::default(),
-        args.bias,
-        &args.label,
+    let input = chip.request_lines(
+        gpiod::Options::input(&args.lines)
+            .active(args.active)
+            .bias(args.bias)
+            .consumer(&args.consumer),
     )?;
 
     for value in input.get_values::<gpiod::Values>()? {

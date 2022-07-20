@@ -48,14 +48,14 @@ impl<T> core::ops::DerefMut for Internal<T> {
 /// GPIO lines values interface info
 pub struct ValuesInfo {
     chip_name: String,
-    label: String,
+    consumer: String,
     lines: Vec<LineId>,
     index: LineMap,
 }
 
 impl fmt::Display for ValuesInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} [{}] {:?}", self.chip_name, self.label, self.lines)
+        write!(f, "{} {:?} {:?}", self.chip_name, self.consumer, self.lines)
     }
 }
 
@@ -65,9 +65,9 @@ impl ValuesInfo {
         &self.chip_name
     }
 
-    /// Get customer label
-    pub fn label(&self) -> &str {
-        &self.label
+    /// Get consumer string
+    pub fn consumer(&self) -> &str {
+        &self.consumer
     }
 
     /// Get offsets of requested lines
@@ -82,15 +82,15 @@ impl ValuesInfo {
 }
 
 impl Internal<ValuesInfo> {
-    fn new(chip_name: &str, label: &str, lines: &[LineId]) -> Self {
+    fn new(chip_name: &str, consumer: &str, lines: &[LineId]) -> Self {
         let chip_name = chip_name.into();
-        let label = label.into();
+        let consumer = consumer.into();
         let index = LineMap::new(lines);
         let lines = lines.to_owned();
 
         Self(ValuesInfo {
             chip_name,
-            label,
+            consumer,
             lines,
             index,
         })
@@ -134,6 +134,177 @@ impl Internal<ValuesInfo> {
         }
 
         Ok(())
+    }
+}
+
+/// Direction trait
+pub trait DirectionType: Send + Sync + 'static {
+    const DIR: Direction;
+}
+
+/// Input direction
+pub struct Input;
+
+impl DirectionType for Input {
+    const DIR: Direction = Direction::Input;
+}
+
+/// Output direction
+pub struct Output;
+
+impl DirectionType for Output {
+    const DIR: Direction = Direction::Output;
+}
+
+/// GPIO line values request options
+///
+/// Input config:
+/// ```
+/// # use gpiod_core::{Options, Active, Bias};
+/// let input = Options::input(&[23, 17, 3])
+///     .active(Active::Low)
+///     .bias(Bias::PullUp)
+///     .consumer("my inputs");
+/// ```
+///
+/// Output config:
+/// ```
+/// # use gpiod_core::{Options, Active, Drive};
+/// let output = Options::output(&[11, 20])
+///     .active(Active::Low)
+///     .drive(Drive::PushPull)
+///     .values([false, true])
+///     .consumer("my outputs");
+/// ```
+///
+/// Input with edge detection:
+/// ```
+/// # use gpiod_core::{Options, Active, Bias, EdgeDetect};
+/// let input = Options::input(&[21, 13])
+///     .active(Active::Low)
+///     .bias(Bias::PullUp)
+///     .edge(EdgeDetect::Both)
+///     .consumer("my inputs");
+/// ```
+pub struct Options<Direction = (), Lines = (), Consumer = ()> {
+    lines: Lines,
+    direction: core::marker::PhantomData<Direction>,
+    active: Active,
+    edge: Option<EdgeDetect>,
+    bias: Option<Bias>,
+    drive: Option<Drive>,
+    values: Option<Values>,
+    consumer: Consumer,
+}
+
+impl Options {
+    /// Create input options
+    pub fn input<Lines: AsRef<[LineId]>>(lines: Lines) -> Options<Input, Lines, &'static str> {
+        Options::<Input, Lines, &'static str> {
+            lines,
+            direction: Default::default(),
+            active: Default::default(),
+            edge: Default::default(),
+            bias: Default::default(),
+            drive: Default::default(),
+            values: Default::default(),
+            consumer: "",
+        }
+    }
+
+    /// Create output options
+    pub fn output<Lines: AsRef<[LineId]>>(lines: Lines) -> Options<Output, Lines, &'static str> {
+        Options::<Output, Lines, &'static str> {
+            lines,
+            direction: Default::default(),
+            active: Default::default(),
+            edge: Default::default(),
+            bias: Default::default(),
+            drive: Default::default(),
+            values: Default::default(),
+            consumer: "",
+        }
+    }
+}
+
+impl<Direction, Lines, OldConsumer> Options<Direction, Lines, OldConsumer> {
+    /// Configure consumer string
+    pub fn consumer<Consumer: AsRef<str>>(
+        self,
+        consumer: Consumer,
+    ) -> Options<Direction, Lines, Consumer> {
+        Options::<Direction, Lines, Consumer> {
+            lines: self.lines,
+            direction: self.direction,
+            active: self.active,
+            edge: self.edge,
+            bias: self.bias,
+            drive: self.drive,
+            values: self.values,
+            consumer,
+        }
+    }
+}
+
+impl<Direction, Lines, Consumer> Options<Direction, Lines, Consumer> {
+    /// Configure GPIO lines astive state
+    ///
+    /// Available both for inputs and outputs
+    pub fn active(mut self, active: Active) -> Self {
+        self.active = active;
+        self
+    }
+
+    /// Configure GPIO lines bias
+    ///
+    /// Available both for inputs and outputs
+    pub fn bias(mut self, bias: Bias) -> Self {
+        self.bias = Some(bias);
+        self
+    }
+}
+
+impl<Direction, Lines: AsRef<[LineId]>, Consumer: AsRef<str>> Options<Direction, Lines, Consumer> {
+    /// Make an independent copy of options
+    pub fn to_owned(&self) -> Options<Direction, Vec<LineId>, String> {
+        Options::<Direction, Vec<LineId>, String> {
+            lines: self.lines.as_ref().to_owned(),
+            direction: self.direction,
+            active: self.active,
+            edge: self.edge,
+            bias: self.bias,
+            drive: self.drive,
+            values: self.values,
+            consumer: self.consumer.as_ref().to_owned(),
+        }
+    }
+}
+
+impl<Lines, Consumer> Options<Input, Lines, Consumer> {
+    /// Configure edge detection
+    ///
+    /// Available only for inputs
+    pub fn edge(mut self, edge: EdgeDetect) -> Self {
+        self.edge = Some(edge);
+        self
+    }
+}
+
+impl<Lines, Consumer> Options<Output, Lines, Consumer> {
+    /// Configure edge detection
+    ///
+    /// Available only for outputs
+    pub fn drive(mut self, drive: Drive) -> Self {
+        self.drive = Some(drive);
+        self
+    }
+
+    /// Configure default values
+    ///
+    /// Available only for outputs
+    pub fn values(mut self, values: impl Into<Values>) -> Self {
+        self.values = Some(values.into());
+        self
     }
 }
 
@@ -214,23 +385,30 @@ impl Internal<ChipInfo> {
     ///
     /// Calling this operation is a precondition to being able to set the state of the GPIO lines.
     /// All the lines passed in one request must share the output mode and the active state.
-    #[allow(clippy::too_many_arguments)]
-    pub fn request_lines(
+    pub fn request_lines<Direction: DirectionType>(
         &self,
         fd: RawFd,
-        lines: &[LineId],
-        direction: Direction,
-        active: Active,
-        edge: Option<EdgeDetect>,
-        bias: Option<Bias>,
-        drive: Option<Drive>,
-        values: Option<Values>,
-        label: &str,
+        options: Options<Direction, impl AsRef<[LineId]>, impl AsRef<str>>,
     ) -> Result<(Internal<ValuesInfo>, RawFd)> {
+        let Options {
+            lines,
+            direction: _,
+            active,
+            edge,
+            bias,
+            drive,
+            values,
+            consumer,
+        } = options;
+
+        let direction = Direction::DIR;
+        let lines = lines.as_ref();
+        let consumer = consumer.as_ref();
+
         #[cfg(not(feature = "v2"))]
         let fd = {
             let mut request =
-                raw::v1::GpioHandleRequest::new(lines, direction, active, bias, drive, label)?;
+                raw::v1::GpioHandleRequest::new(lines, direction, active, bias, drive, consumer)?;
 
             // TODO: edge detection
 
@@ -248,7 +426,7 @@ impl Internal<ChipInfo> {
         #[cfg(feature = "v2")]
         let fd = {
             let mut request = raw::v2::GpioLineRequest::new(
-                lines, direction, active, edge, bias, drive, values, label,
+                lines, direction, active, edge, bias, drive, values, consumer,
             )?;
 
             unsafe_call!(raw::v2::gpio_get_line(fd, &mut request))?;
@@ -256,6 +434,30 @@ impl Internal<ChipInfo> {
             request.fd
         };
 
-        Ok((Internal::<ValuesInfo>::new(&self.name, label, lines), fd))
+        Ok((Internal::<ValuesInfo>::new(&self.name, consumer, lines), fd))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn input_options() {
+        let _ = Options::input([27, 1, 19])
+            .bias(Bias::PullUp)
+            .active(Active::Low)
+            .edge(EdgeDetect::Both)
+            .consumer("gpin");
+    }
+
+    #[test]
+    fn output_options() {
+        let _ = Options::output([11, 2])
+            .bias(Bias::PullUp)
+            .active(Active::Low)
+            .consumer("gpout")
+            .drive(Drive::OpenDrain)
+            .values([true, false]);
     }
 }

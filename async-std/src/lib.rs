@@ -15,8 +15,8 @@ use std::{
 use gpiod_core::{invalid_input, major, minor, Error, Internal, Result};
 
 pub use gpiod_core::{
-    Active, Bias, BitId, ChipInfo, Direction, Drive, Edge, EdgeDetect, Event, LineId, LineInfo,
-    Values, ValuesInfo, ValuesIter,
+    Active, Bias, BitId, ChipInfo, Direction, Drive, Edge, EdgeDetect, Event, Input, LineId,
+    LineInfo, Options, Output, Values, ValuesInfo, ValuesIter,
 };
 
 use async_io::Async;
@@ -41,7 +41,8 @@ where
     }
 }
 
-struct File {
+#[doc(hidden)]
+pub struct File {
     // use file to call close when drop
     inner: Async<std::fs::File>,
 }
@@ -98,13 +99,29 @@ async fn read_event(index: &gpiod_core::LineMap, file: &mut File) -> Result<Even
     event.as_event(index)
 }
 
+/// Direction trait
+pub trait DirectionType: gpiod_core::DirectionType {
+    type Lines;
+
+    fn lines(info: Internal<ValuesInfo>, file: File) -> Self::Lines;
+}
+
 /// The interface for getting the values of GPIO lines configured for input
 ///
-/// Use [Chip::request_input] to configure specific GPIO lines for input.
+/// Use [Chip::request_lines] with [Options::input] to configure specific GPIO lines for input.
 pub struct Inputs {
     info: Arc<Internal<ValuesInfo>>,
     // wrap file to call close on drop
     file: File,
+}
+
+impl DirectionType for Input {
+    type Lines = Inputs;
+
+    fn lines(info: Internal<ValuesInfo>, file: File) -> Self::Lines {
+        let info = Arc::new(info);
+        Self::Lines { info, file }
+    }
 }
 
 impl Deref for Inputs {
@@ -118,8 +135,8 @@ impl Deref for Inputs {
 impl Inputs {
     /// Get the value of GPIO lines
     ///
-    /// The values can only be read if the lines have previously been requested as either inputs
-    /// using the [Chip::request_input] method, or outputs using the [Chip::request_output].
+    /// The values can only be read if the lines have previously been requested as inputs
+    /// using the [Chip::request_lines] method with [Options::input].
     pub async fn get_values<T: From<Values>>(&self) -> Result<T> {
         let fd = self.file.as_raw_fd();
         let info = self.info.clone();
@@ -134,7 +151,7 @@ impl Inputs {
 
 /// The interface for setting the values of GPIO lines configured for output
 ///
-/// Use [Chip::request_output] to configure specific GPIO lines for output.
+/// Use [Chip::request_lines] with [Options::output] to configure specific GPIO lines for output.
 ///
 /// The values also can be read.
 /// Specifically this may be useful to get actual value when lines driven as open drain or source.
@@ -142,6 +159,15 @@ pub struct Outputs {
     info: Arc<Internal<ValuesInfo>>,
     // wrap file to call close on drop
     file: File,
+}
+
+impl DirectionType for Output {
+    type Lines = Outputs;
+
+    fn lines(info: Internal<ValuesInfo>, file: File) -> Self::Lines {
+        let info = Arc::new(info);
+        Self::Lines { info, file }
+    }
 }
 
 impl Deref for Outputs {
@@ -154,9 +180,6 @@ impl Deref for Outputs {
 
 impl Outputs {
     /// Get the value of GPIO lines
-    ///
-    /// The values can only be read if the lines have previously been requested as either inputs
-    /// using the [Chip::request_input] method, or outputs using the [Chip::request_output].
     pub async fn get_values<T: From<Values>>(&self) -> Result<T> {
         let fd = self.file.as_raw_fd();
         let info = self.info.clone();
@@ -166,17 +189,12 @@ impl Outputs {
     /// Set the value of GPIO lines
     ///
     /// The value can only be set if the lines have previously been requested as outputs
-    /// using the [Chip::request_output].
+    /// using the [Chip::request_lines] with [Options::output].
     pub async fn set_values(&self, values: impl Into<Values>) -> Result<()> {
         let values = values.into();
         let fd = self.file.as_raw_fd();
         let info = self.info.clone();
         asyncify(move || info.set_values(fd, values)).await
-    }
-
-    /// Read GPIO events synchronously
-    pub async fn read_event(&mut self) -> Result<Event> {
-        read_event(self.info.index(), &mut self.file).await
     }
 }
 
@@ -275,83 +293,24 @@ impl Chip {
         asyncify(move || info.line_info(fd, line)).await
     }
 
-    /// Request the GPIO chip to configure the lines passed as argument as outputs
+    /// Request the GPIO chip to configure the lines passed as argument as inputs or outputs
     ///
     /// Calling this operation is a precondition to being able to set the state of the GPIO lines.
-    /// All the lines passed in one request must share the output mode and the active state.
+    /// All the lines passed in one request must share the configured options such as active state, edge detect, GPIO bias, output drive and consumer string.
     /// The state of lines configured as outputs can also be read using the [Outputs::get_values] method.
-    #[allow(clippy::too_many_arguments)]
-    pub async fn request_output(
+    pub async fn request_lines<Direction: DirectionType>(
         &self,
-        lines: impl AsRef<[LineId]>,
-        active: Active,
-        edge: EdgeDetect,
-        bias: Bias,
-        drive: Drive,
-        values: Option<impl Into<Values>>,
-        label: impl AsRef<str>,
+        options: Options<Direction, impl AsRef<[LineId]>, impl AsRef<str>>,
     ) -> Result<Outputs> {
-        let lines = lines.as_ref().to_owned();
-        let label = label.as_ref().to_owned();
-        let values = values.map(Into::into);
         let fd = self.file.as_raw_fd();
+        let options = options.to_owned();
         let info = self.info.clone();
 
-        let (info, fd) = asyncify(move || {
-            info.request_lines(
-                fd,
-                &lines,
-                Direction::Output,
-                active,
-                Some(edge),
-                Some(bias),
-                Some(drive),
-                values,
-                &label,
-            )
-        })
-        .await?;
+        let (info, fd) = asyncify(move || info.request_lines(fd, options)).await?;
 
         let file = File::from_fd(fd)?;
         let info = Arc::new(info);
 
         Ok(Outputs { info, file })
-    }
-
-    /// Request the GPIO chip to configure the lines passed as argument as inputs
-    ///
-    /// Calling this operation is a precondition to being able to read the state of the GPIO lines.
-    pub async fn request_input(
-        &self,
-        lines: impl AsRef<[LineId]>,
-        active: Active,
-        edge: EdgeDetect,
-        bias: Bias,
-        label: impl AsRef<str>,
-    ) -> Result<Inputs> {
-        let lines = lines.as_ref().to_owned();
-        let label = label.as_ref().to_owned();
-        let fd = self.file.as_raw_fd();
-        let info = self.info.clone();
-
-        let (info, fd) = asyncify(move || {
-            info.request_lines(
-                fd,
-                &lines,
-                Direction::Output,
-                active,
-                Some(edge),
-                Some(bias),
-                None,
-                None,
-                &label,
-            )
-        })
-        .await?;
-
-        let file = File::from_fd(fd)?;
-        let info = Arc::new(info);
-
-        Ok(Inputs { info, file })
     }
 }
