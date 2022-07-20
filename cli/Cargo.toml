@@ -30,7 +30,7 @@ name = "gpiomon-rs"
 path = "src/mon.rs"
 
 [[bin]]
-name = "gpiod-rs"
+name = "gpio-rs"
 path = "src/main.rs"
 
 [dependencies.gpiod]
