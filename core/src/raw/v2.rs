@@ -150,3 +150,22 @@ nix::ioctl_readwrite!(gpio_get_line, GPIO_MAGIC, 0x07, GpioLineRequest);
 nix::ioctl_readwrite!(gpio_line_set_config, GPIO_MAGIC, 0x0d, GpioLineConfig);
 nix::ioctl_readwrite!(gpio_line_get_values, GPIO_MAGIC, 0x0e, GpioLineValues);
 nix::ioctl_readwrite!(gpio_line_set_values, GPIO_MAGIC, 0x0f, GpioLineValues);
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn sizes() {
+        use core::mem::size_of;
+
+        assert_eq!(size_of::<GpioLineAttr>(), 16);
+        assert_eq!(size_of::<GpioLineConfigAttr>(), 24);
+        assert_eq!(size_of::<GpioLineConfig>(), 272);
+        assert_eq!(size_of::<GpioLineRequest>(), 592);
+        assert_eq!(size_of::<GpioLineInfo>(), 256);
+        assert_eq!(size_of::<GpioLineInfoChanged>(), 288);
+        assert_eq!(size_of::<GpioLineEvent>(), 48);
+        assert_eq!(size_of::<GpioLineValues>(), 16);
+    }
+}

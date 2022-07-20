@@ -21,3 +21,15 @@ pub struct GpioChipInfo {
 
 nix::ioctl_read!(gpio_get_chip_info, GPIO_MAGIC, 0x01, GpioChipInfo);
 nix::ioctl_read!(gpio_line_info_unwatch, GPIO_MAGIC, 0x0c, u32);
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn sizes() {
+        use core::mem::size_of;
+
+        assert_eq!(size_of::<GpioChipInfo>(), 68);
+    }
+}
