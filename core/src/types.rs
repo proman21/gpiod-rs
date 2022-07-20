@@ -228,6 +228,40 @@ values_conv! {
     u64,
 }
 
+impl From<&[bool]> for Values {
+    fn from(bits: &[bool]) -> Self {
+        bits.into_iter().copied().collect()
+    }
+}
+
+impl<const N: usize> From<[bool; N]> for Values {
+    fn from(bits: [bool; N]) -> Self {
+        bits.into_iter().collect()
+    }
+}
+
+impl<const N: usize> From<&[bool; N]> for Values {
+    fn from(bits: &[bool; N]) -> Self {
+        bits.into_iter().copied().collect()
+    }
+}
+
+impl<const N: usize> From<Values> for [bool; N] {
+    fn from(values: Values) -> Self {
+        let mut bits = [false; N];
+        for (i, bit) in values.into_iter().enumerate() {
+            bits[i] = bit;
+        }
+        bits
+    }
+}
+
+impl From<Values> for Vec<bool> {
+    fn from(values: Values) -> Self {
+        values.into_iter().collect()
+    }
+}
+
 impl Extend<bool> for Values {
     fn extend<T>(&mut self, iter: T)
     where
@@ -772,6 +806,28 @@ mod test {
                 bits: 0b10101101,
                 mask: 0b11111111,
             }
+        );
+    }
+
+    #[test]
+    fn values_from_slice() {
+        assert_eq!(
+            Values::from([true, false, false, true]),
+            Values {
+                bits: 0b1001,
+                mask: 0b1111,
+            }
+        );
+    }
+
+    #[test]
+    fn values_into_vec() {
+        assert_eq!(
+            Vec::from(Values {
+                bits: 0b1001,
+                mask: 0b1111,
+            }),
+            vec![true, false, false, true],
         );
     }
 
