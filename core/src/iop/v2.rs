@@ -1,6 +1,6 @@
 use crate::{
-    raw::v2::*, utils::*, Active, Bias, Direction, Drive, Edge, EdgeDetect, Event, LineId,
-    LineInfo, LineMap, Result, Values,
+    raw::v2::*, utils::*, Active, AsValuesMut, Bias, Direction, Drive, Edge, EdgeDetect, Event,
+    LineId, LineInfo, LineMap, Result, Values,
 };
 
 /// Raw event ro read from fd
@@ -67,7 +67,7 @@ impl GpioLineInfo {
 
 impl AsMut<GpioLineValues> for Values {
     fn as_mut(&mut self) -> &mut GpioLineValues {
-        // it's safe because data layout is same
+        // it's safe because memory layout is same
         unsafe { &mut *(self as *mut _ as *mut _) }
     }
 }
@@ -137,7 +137,9 @@ impl GpioLineRequest {
                 }
             }
 
-            if let Some(values) = values {
+            if let Some(mut values) = values {
+                values.truncate(lines.len() as _);
+
                 config.num_attrs = 1;
                 let attr = &mut config.attrs[0];
                 attr.attr.id = GPIO_LINE_ATTR_ID_OUTPUT_VALUES;

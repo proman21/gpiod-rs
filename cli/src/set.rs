@@ -49,13 +49,13 @@ impl std::str::FromStr for LineValue {
 
 #[paw::main]
 fn main(args: Args) -> anyhow::Result<()> {
-    if args.line_values.len() > gpiod::Values::MAX {
+    if args.line_values.len() > gpiod::MAX_VALUES {
         anyhow::bail!("Too many lines");
     }
 
     let chip = gpiod::Chip::new(&args.chip)?;
 
-    let (lines, values): (Vec<_>, gpiod::Values) = args
+    let (lines, mut values): (Vec<_>, Vec<_>) = args
         .line_values
         .into_iter()
         .map(|pair| (pair.line, pair.value))
@@ -66,14 +66,15 @@ fn main(args: Args) -> anyhow::Result<()> {
             .active(args.active)
             .bias(args.bias)
             .drive(args.drive)
-            .values(values)
+            .values(&values)
             .consumer(&args.consumer),
     )?;
 
     //output.set_values(values)?;
+    output.get_values(&mut values)?;
 
-    for value in output.get_values::<gpiod::Values>()? {
-        print!("{}", if value { 1 } else { 0 });
+    for value in values {
+        print!("{} ", if value { 1 } else { 0 });
     }
     println!("");
 

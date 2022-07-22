@@ -23,7 +23,7 @@ struct Args {
 
 #[paw::main]
 fn main(args: Args) -> anyhow::Result<()> {
-    if args.lines.len() > gpiod::Values::MAX {
+    if args.lines.len() > gpiod::MAX_VALUES {
         anyhow::bail!("Too many lines");
     }
 
@@ -36,8 +36,12 @@ fn main(args: Args) -> anyhow::Result<()> {
             .consumer(&args.consumer),
     )?;
 
-    for value in input.get_values::<gpiod::Values>()? {
-        print!("{}", if value { 1 } else { 0 });
+    let values = args.lines.iter().map(|_| false).collect::<Vec<_>>();
+
+    let values = input.get_values(values)?;
+
+    for value in values {
+        print!("{} ", if value { 1 } else { 0 });
     }
     println!("");
 

@@ -1,6 +1,6 @@
 use crate::{
-    raw::v1::*, utils::*, Active, Bias, BitId, Direction, Drive, Edge, EdgeDetect, Event, LineId,
-    LineInfo, Result, Values,
+    raw::v1::*, utils::*, Active, AsValues, AsValuesMut, Bias, BitId, Direction, Drive, Edge,
+    EdgeDetect, Event, LineId, LineInfo, Result,
 };
 
 /// Raw event to read from fd
@@ -112,19 +112,21 @@ impl GpioHandleRequest {
 }
 
 impl GpioHandleData {
-    pub fn as_values(&self, len: usize) -> Values {
-        let mut values = Values::default();
-        for i in 0..len {
-            values.set(i as _, self.values[i] != 0);
+    pub fn fill_values(&self, len: usize, values: &mut impl AsValuesMut) {
+        for id in 0..len {
+            values.set(id as _, Some(self.values[id] != 0));
         }
-        values
     }
 
-    pub fn from_values(len: usize, values: &Values) -> Self {
+    pub fn from_values(len: usize, values: impl AsValues) -> Self {
         let mut data = GpioHandleData::default();
 
         for i in 0..len {
-            data.values[i] = values.get(i as _).unwrap_or(false) as _;
+            data.values[i] = if values.get(i as _).unwrap_or(false) {
+                1
+            } else {
+                0
+            };
         }
 
         data

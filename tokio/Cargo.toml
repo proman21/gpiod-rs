@@ -19,6 +19,10 @@ version = "1"
 default-features = false
 features = ["fs", "io-util", "rt", "net"]
 
+[dev-dependencies.tokio]
+version = "1"
+features = ["macros", "rt-multi-thread"]
+
 [features]
 default = ["v2"]
 v2 = ["gpiod-core/v2"]

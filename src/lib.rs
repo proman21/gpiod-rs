@@ -1,3 +1,5 @@
+#![forbid(future_incompatible)]
+#![deny(bad_style, missing_docs)]
 #![doc = include_str!("../README.md")]
 
 use std::{
@@ -15,8 +17,9 @@ use std::{
 use gpiod_core::{invalid_input, major, minor, Internal, Result};
 
 pub use gpiod_core::{
-    Active, Bias, BitId, ChipInfo, Direction, Drive, Edge, EdgeDetect, Event, Input, LineId,
-    LineInfo, Options, Output, Values, ValuesInfo, ValuesIter,
+    Active, AsValues, AsValuesMut, Bias, BitId, ChipInfo, Direction, Drive, Edge, EdgeDetect,
+    Event, Input, LineId, LineInfo, Masked, Options, Output, Values, ValuesInfo, MAX_BITS,
+    MAX_VALUES,
 };
 
 #[cfg(not(feature = "v2"))]
@@ -35,8 +38,10 @@ fn read_event(index: &gpiod_core::LineMap, file: &mut File) -> Result<Event> {
 
 /// Direction trait
 pub trait DirectionType: gpiod_core::DirectionType {
+    /// The type for access to values
     type Lines;
 
+    /// Instantiate values accessor
     fn lines(info: Internal<ValuesInfo>, file: File) -> Self::Lines;
 }
 
@@ -70,8 +75,9 @@ impl Inputs {
     ///
     /// The values can only be read if the lines have previously been requested as inputs
     /// using the [Chip::request_lines] method with [Options::input].
-    pub fn get_values<T: From<Values>>(&self) -> Result<T> {
-        self.info.get_values(self.file.as_raw_fd()).map(From::from)
+    pub fn get_values<T: AsValuesMut>(&self, mut values: T) -> Result<T> {
+        self.info.get_values(self.file.as_raw_fd(), &mut values)?;
+        Ok(values)
     }
 
     /// Read GPIO events
@@ -118,16 +124,17 @@ impl Iterator for Inputs {
 
 impl Outputs {
     /// Get the value of GPIO lines
-    pub fn get_values<T: From<Values>>(&self) -> Result<T> {
-        self.info.get_values(self.file.as_raw_fd()).map(From::from)
+    pub fn get_values<T: AsValuesMut>(&self, mut values: T) -> Result<T> {
+        self.info.get_values(self.file.as_raw_fd(), &mut values)?;
+        Ok(values)
     }
 
     /// Set the value of GPIO lines
     ///
     /// The value can only be set if the lines have previously been requested as outputs
     /// using the [Chip::request_lines] with [Options::output].
-    pub fn set_values(&self, values: impl Into<Values>) -> Result<()> {
-        self.info.set_values(self.file.as_raw_fd(), values.into())
+    pub fn set_values<T: AsValues>(&self, values: T) -> Result<()> {
+        self.info.set_values(self.file.as_raw_fd(), values)
     }
 }
 
@@ -159,6 +166,16 @@ impl Chip {
     /// Create a new GPIO chip interface using path
     pub fn new(path: impl AsRef<Path>) -> Result<Chip> {
         let path = path.as_ref();
+
+        #[allow(unused_assignments)]
+        let mut full_path = None;
+
+        let path = if path.starts_with("/dev") {
+            path
+        } else {
+            full_path = Path::new("/dev").join(path).into();
+            full_path.as_ref().unwrap()
+        };
 
         let file = OpenOptions::new().read(true).write(true).open(path)?;
 

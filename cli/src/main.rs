@@ -156,7 +156,7 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
             chip,
             lines,
         } => {
-            if lines.len() > gpiod::Values::MAX {
+            if lines.len() > gpiod::MAX_VALUES {
                 anyhow::bail!("Too many lines");
             }
 
@@ -169,8 +169,12 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
                     .consumer(&consumer),
             )?;
 
-            for value in input.get_values::<gpiod::Values>()? {
-                print!("{}", if value { 1 } else { 0 });
+            let values = lines.iter().map(|_| false).collect::<Vec<_>>();
+
+            let values = input.get_values(values)?;
+
+            for value in values {
+                print!("{} ", if value { 1 } else { 0 });
             }
             println!("");
         }
@@ -183,13 +187,13 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
             chip,
             line_values,
         } => {
-            if line_values.len() > gpiod::Values::MAX {
+            if line_values.len() > gpiod::MAX_VALUES {
                 anyhow::bail!("Too many lines");
             }
 
             let chip = gpiod::Chip::new(&chip)?;
 
-            let (lines, values): (Vec<_>, gpiod::Values) = line_values
+            let (lines, values): (Vec<_>, Vec<_>) = line_values
                 .into_iter()
                 .map(|pair| (pair.line, pair.value))
                 .unzip();
@@ -199,14 +203,15 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
                     .active(active)
                     .bias(bias)
                     .drive(drive)
-                    .values(values)
+                    .values(&values)
                     .consumer(&consumer),
             )?;
 
             //output.set_values(values)?;
+            let values = output.get_values(values)?;
 
-            for value in output.get_values::<gpiod::Values>()? {
-                print!("{}", if value { 1 } else { 0 });
+            for value in values {
+                print!("{} ", if value { 1 } else { 0 });
             }
             println!("");
         }
@@ -219,7 +224,7 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
             chip,
             lines,
         } => {
-            if lines.len() > gpiod::Values::MAX {
+            if lines.len() > gpiod::MAX_VALUES {
                 anyhow::bail!("Too many lines");
             }
 

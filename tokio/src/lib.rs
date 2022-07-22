@@ -16,8 +16,9 @@ use std::{
 use gpiod_core::{invalid_input, major, minor, Error, Internal, Result};
 
 pub use gpiod_core::{
-    Active, Bias, BitId, ChipInfo, Direction, Drive, Edge, EdgeDetect, Event, Input, LineId,
-    LineInfo, Options, Output, Values, ValuesInfo, ValuesIter,
+    Active, AsValues, AsValuesMut, Bias, BitId, ChipInfo, Direction, Drive, Edge, EdgeDetect,
+    Event, Input, LineId, LineInfo, Masked, Options, Output, Values, ValuesInfo, MAX_BITS,
+    MAX_VALUES,
 };
 
 use tokio::{
@@ -111,7 +112,7 @@ async fn read_event(index: &gpiod_core::LineMap, file: &mut File) -> Result<Even
 pub trait DirectionType: gpiod_core::DirectionType {
     type Lines;
 
-    fn lines(info: Internal<ValuesInfo>, file: File) -> Self::Lines;
+    fn lines(info: Arc<Internal<ValuesInfo>>, file: File) -> Self::Lines;
 }
 
 /// The interface for getting the values of GPIO lines configured for input
@@ -126,8 +127,7 @@ pub struct Inputs {
 impl DirectionType for Input {
     type Lines = Inputs;
 
-    fn lines(info: Internal<ValuesInfo>, file: File) -> Self::Lines {
-        let info = Arc::new(info);
+    fn lines(info: Arc<Internal<ValuesInfo>>, file: File) -> Self::Lines {
         Self::Lines { info, file }
     }
 }
@@ -145,10 +145,10 @@ impl Inputs {
     ///
     /// The values can only be read if the lines have previously been requested as inputs
     /// using the [Chip::request_lines] method with [Options::input].
-    pub async fn get_values<T: From<Values>>(&self) -> Result<T> {
+    pub async fn get_values<T: AsValuesMut + Send + 'static>(&self, mut values: T) -> Result<T> {
         let fd = self.file.as_raw_fd();
         let info = self.info.clone();
-        Ok(asyncify(move || info.get_values(fd)).await?.into())
+        asyncify(move || info.get_values(fd, &mut values).map(|_| values)).await
     }
 
     /// Read GPIO events
@@ -172,8 +172,7 @@ pub struct Outputs {
 impl DirectionType for Output {
     type Lines = Outputs;
 
-    fn lines(info: Internal<ValuesInfo>, file: File) -> Self::Lines {
-        let info = Arc::new(info);
+    fn lines(info: Arc<Internal<ValuesInfo>>, file: File) -> Self::Lines {
         Self::Lines { info, file }
     }
 }
@@ -188,18 +187,17 @@ impl Deref for Outputs {
 
 impl Outputs {
     /// Get the value of GPIO lines
-    pub async fn get_values<T: From<Values>>(&self) -> Result<T> {
+    pub async fn get_values<T: AsValuesMut + Send + 'static>(&self, mut values: T) -> Result<T> {
         let fd = self.file.as_raw_fd();
         let info = self.info.clone();
-        Ok(asyncify(move || info.get_values(fd)).await?.into())
+        asyncify(move || info.get_values(fd, &mut values).map(|_| values)).await
     }
 
     /// Set the value of GPIO lines
     ///
     /// The value can only be set if the lines have previously been requested as outputs
     /// using the [Chip::request_lines] with [Options::output].
-    pub async fn set_values(&self, values: impl Into<Values>) -> Result<()> {
-        let values = values.into();
+    pub async fn set_values<T: AsValues + Send + 'static>(&self, values: T) -> Result<()> {
         let fd = self.file.as_raw_fd();
         let info = self.info.clone();
         asyncify(move || info.set_values(fd, values)).await
@@ -236,6 +234,16 @@ impl Chip {
     /// Create a new GPIO chip interface using path
     pub async fn new(path: impl AsRef<Path>) -> Result<Chip> {
         let path = path.as_ref();
+
+        #[allow(unused_assignments)]
+        let mut full_path = None;
+
+        let path = if path.starts_with("/dev") {
+            path
+        } else {
+            full_path = Path::new("/dev").join(path).into();
+            full_path.as_ref().unwrap()
+        };
 
         let file = File::from_file(
             OpenOptions::new()
@@ -309,7 +317,7 @@ impl Chip {
     pub async fn request_lines<Direction: DirectionType>(
         &self,
         options: Options<Direction, impl AsRef<[LineId]>, impl AsRef<str>>,
-    ) -> Result<Outputs> {
+    ) -> Result<Direction::Lines> {
         let fd = self.file.as_raw_fd();
         let options = options.to_owned();
         let info = self.info.clone();
@@ -319,6 +327,6 @@ impl Chip {
         let file = File::from_fd(fd)?;
         let info = Arc::new(info);
 
-        Ok(Outputs { info, file })
+        Ok(Direction::lines(info, file))
     }
 }

@@ -26,3 +26,73 @@ Sysfs-based API (< 4.0) does not supported.
 - [gpiod](https://crates.io/crates/gpiod) - sync interface which supports synchronous operation only
 - [tokio-gpiod](https://crates.io/crates/tokio-gpiod) - async interface for [tokio](https://tokio.rs/) fans
 - **[async-std-gpiod](https://crates.io/crates/async-std-gpiod)** - async interface for [async-std](https://async.rs/) fans
+
+## Usage examples
+
+Input values:
+
+```no_run
+use async_std_gpiod::{Chip, Options};
+
+#[async_std::main]
+async fn main() -> std::io::Result<()> {
+    let chip = Chip::new("gpiochip0").await?; // open chip
+
+    let opts = Options::input([27, 3, 11]) // configure lines offsets
+        .consumer("my-inputs"); // optionally set consumer string
+
+    let inputs = chip.request_lines(opts).await?;
+
+    let values = inputs.get_values([false; 3]).await?;
+
+    println!("values: {:?}", values);
+
+    Ok(())
+}
+```
+
+Output values:
+
+```no_run
+use async_std_gpiod::{Chip, Options};
+
+#[async_std::main]
+async fn main() -> std::io::Result<()> {
+    let chip = Chip::new("gpiochip0").await?; // open chip
+
+    let opts = Options::output([9, 21]) // configure lines offsets
+        .values([false, true]) // optionally set initial values
+        .consumer("my-outputs"); // optionally set consumer string
+
+    let outputs = chip.request_lines(opts).await?;
+
+    outputs.set_values([true, false]).await?;
+
+    Ok(())
+}
+```
+
+Monitor values:
+
+```no_run
+use async_std_gpiod::{Chip, Options, EdgeDetect};
+
+#[async_std::main]
+async fn main() -> std::io::Result<()> {
+    let chip = Chip::new("gpiochip0").await?; // open chip
+
+    let opts = Options::input([4, 7]) // configure lines offsets
+        .edge(EdgeDetect::Both) // configure edges to detect
+        .consumer("my-inputs"); // optionally set consumer string
+
+    let mut inputs = chip.request_lines(opts).await?;
+
+    loop {
+        let event = inputs.read_event().await?;
+
+        println!("event: {:?}", event);
+    }
+
+    Ok(())
+}
+```

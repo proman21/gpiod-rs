@@ -26,10 +26,10 @@ pub fn invalid_data(msg: &'static str) -> Error {
 
 #[inline(always)]
 pub fn check_size<T: ?Sized>(len: usize, val: &T) -> Result<()> {
-    if len < size_of_val(val) {
+    if len == size_of_val(val) {
         Ok(())
     } else {
-        Err(invalid_data("Too long data"))
+        Err(invalid_data("Unexpected size"))
     }
 }
 

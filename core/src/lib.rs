@@ -7,6 +7,7 @@ mod iop;
 mod raw;
 mod types;
 mod utils;
+mod values;
 
 use std::{fmt, os::unix::io::RawFd};
 
@@ -17,9 +18,9 @@ pub use std::{
 };
 pub use types::{
     Active, Bias, BitId, Direction, Drive, Edge, EdgeDetect, Event, LineId, LineInfo, LineMap,
-    Values, ValuesIter,
 };
 pub use utils::*;
+pub use values::{AsValues, AsValuesMut, Bits, Masked, Values, MAX_BITS, MAX_VALUES};
 
 macro_rules! unsafe_call {
     ($res:expr) => {
@@ -96,41 +97,43 @@ impl Internal<ValuesInfo> {
         })
     }
 
-    pub fn get_values(&self, fd: RawFd) -> Result<Values> {
+    pub fn get_values<T: AsValuesMut>(&self, fd: RawFd, values: &mut T) -> Result<()> {
         #[cfg(not(feature = "v2"))]
-        let values = {
+        {
             let mut data = raw::v1::GpioHandleData::default();
 
             unsafe_call!(raw::v1::gpio_get_line_values(fd, &mut data))?;
 
-            data.as_values(self.lines.len())
-        };
+            data.fill_values(self.lines.len(), values);
+        }
 
         #[cfg(feature = "v2")]
-        let values = {
-            let mut values = Values::default();
+        {
+            let mut data = values.convert::<Values>();
+            data.truncate(self.lines.len() as _);
 
-            unsafe_call!(raw::v2::gpio_line_get_values(fd, values.as_mut(),))?;
+            unsafe_call!(raw::v2::gpio_line_get_values(fd, data.as_mut()))?;
 
-            values
-        };
+            data.copy_into(values);
+        }
 
-        Ok(values)
+        Ok(())
     }
 
-    pub fn set_values(&self, fd: RawFd, values: Values) -> Result<()> {
+    pub fn set_values<T: AsValues>(&self, fd: RawFd, values: T) -> Result<()> {
         #[cfg(not(feature = "v2"))]
         {
-            let mut data = raw::v1::GpioHandleData::from_values(self.lines.len(), &values);
+            let mut data = raw::v1::GpioHandleData::from_values(self.lines.len(), values);
 
             unsafe_call!(raw::v1::gpio_set_line_values(fd, &mut data))?;
         }
 
         #[cfg(feature = "v2")]
         {
-            let mut values = values;
+            let mut data = values.convert::<Values>();
+            data.truncate(self.lines.len() as _);
 
-            unsafe_call!(raw::v2::gpio_line_set_values(fd, values.as_mut(),))?;
+            unsafe_call!(raw::v2::gpio_line_set_values(fd, data.as_mut()))?;
         }
 
         Ok(())
@@ -302,8 +305,8 @@ impl<Lines, Consumer> Options<Output, Lines, Consumer> {
     /// Configure default values
     ///
     /// Available only for outputs
-    pub fn values(mut self, values: impl Into<Values>) -> Self {
-        self.values = Some(values.into());
+    pub fn values<T: AsValues>(mut self, values: T) -> Self {
+        self.values = Some(values.convert());
         self
     }
 }

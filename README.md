@@ -26,3 +26,96 @@ Sysfs-based API (< 4.0) does not supported.
 - **[gpiod](https://crates.io/crates/gpiod)** - sync interface which supports synchronous operation only
 - [tokio-gpiod](https://crates.io/crates/tokio-gpiod) - async interface for [tokio](https://tokio.rs/) fans
 - [async-std-gpiod](https://crates.io/crates/async-std-gpiod) - async interface for [async-std](https://async.rs/) fans
+
+## Usage examples
+
+Input values:
+
+```no_run
+use gpiod::{Chip, Options, Masked, AsValuesMut};
+
+fn main() -> std::io::Result<()> {
+    let chip = Chip::new("gpiochip0")?; // open chip
+
+    let opts = Options::input([27, 3, 11]) // configure lines offsets
+        .consumer("my-inputs"); // optionally set consumer string
+
+    let inputs = chip.request_lines(opts)?;
+
+    // get all three values
+    let values = inputs.get_values([false; 3])?;
+
+    println!("values: {:?}", values);
+
+    // get second value only
+    let values = inputs.get_values([None, Some(false), None])?;
+
+    println!("values: {:?}", values);
+
+    // get values via bits
+    let values = inputs.get_values(0u8)?;
+
+    println!("values: {:#b}", values);
+
+    // get only second value via bits
+    let values = inputs.get_values(Masked::<u8>::default().with(1, Some(false)))?;
+
+    println!("values: {:#b}", values);
+
+    Ok(())
+}
+```
+
+Output values:
+
+```no_run
+use gpiod::{Chip, Options, Masked, AsValuesMut};
+
+fn main() -> std::io::Result<()> {
+    let chip = Chip::new("gpiochip0")?; // open chip
+
+    let opts = Options::output([9, 21]) // configure lines offsets
+        .values([false, true]) // optionally set initial values
+        .consumer("my-outputs"); // optionally set consumer string
+
+    let outputs = chip.request_lines(opts)?;
+
+    // set all two values
+    outputs.set_values([true, false])?;
+
+    // set second value only
+    outputs.set_values([None, Some(false)])?;
+
+    // set values from bits
+    outputs.set_values(0b01u8)?;
+
+    // set only second value from bits
+    outputs.set_values(Masked::<u8>::default().with(1, Some(true)))?;
+
+    Ok(())
+}
+```
+
+Monitor values:
+
+```no_run
+use gpiod::{Chip, Options, EdgeDetect};
+
+fn main() -> std::io::Result<()> {
+    let chip = Chip::new("gpiochip0")?; // open chip
+
+    let opts = Options::input([4, 7]) // configure lines offsets
+        .edge(EdgeDetect::Both) // configure edges to detect
+        .consumer("my-inputs"); // optionally set consumer string
+
+    let mut inputs = chip.request_lines(opts)?;
+
+    loop {
+        let event = inputs.read_event()?;
+
+        println!("event: {:?}", event);
+    }
+
+    Ok(())
+}
+```
