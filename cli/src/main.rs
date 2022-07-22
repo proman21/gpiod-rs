@@ -103,9 +103,11 @@ impl std::str::FromStr for LineValue {
         let line = k
             .parse()
             .map_err(|_| anyhow::anyhow!("Invalid line offset"))?;
-        let value = v
-            .parse()
-            .map_err(|_| anyhow::anyhow!("Invalid line value"))?;
+        let value = match v.trim() {
+            "0" | "off" | "false" => false,
+            "1" | "on" | "true" => true,
+            _ => anyhow::bail!("Invalid line value"),
+        };
         Ok(Self { line, value })
     }
 }
