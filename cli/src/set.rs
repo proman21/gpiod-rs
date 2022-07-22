@@ -79,7 +79,7 @@ fn main(args: Args) -> anyhow::Result<()> {
     for value in values {
         print!("{} ", if value { 1 } else { 0 });
     }
-    println!("");
+    println!();
 
     Ok(())
 }
