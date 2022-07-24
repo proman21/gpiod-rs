@@ -215,7 +215,7 @@ jobs:
           args: --all --target ${{ matrix.target }} --no-default-features --features ${{ matrix.features }} ${{ matrix.test_args }}
 
   publish:
-    if: github.repository == 'katyo/libgpiod-rs' && startsWith(github.ref, 'refs/tags/')
+    if: github.repository == 'katyo/gpiod-rs' && startsWith(github.ref, 'refs/tags/')
     needs:
       - test
     runs-on: ubuntu-latest
