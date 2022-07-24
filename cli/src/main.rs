@@ -1,121 +1,12 @@
-#[derive(structopt::StructOpt)]
-enum Cmds {
-    /// List GPIO devices
-    Detect,
+mod args;
 
-    /// Get info about GPIO devices
-    Info {
-        /// GPIO chip paths
-        #[structopt()]
-        chip: Vec<String>,
-    },
+fn main() -> anyhow::Result<()> {
+    use args::{Args, Cmd};
 
-    /// Get values from GPIO lines
-    Get {
-        /// Input bias
-        #[structopt(short, long, default_value = "disable")]
-        bias: gpiod::Bias,
+    let args: Args = clap::Parser::parse();
 
-        /// Active state
-        #[structopt(short, long, default_value = "high")]
-        active: gpiod::Active,
-
-        /// Consumer string
-        #[structopt(short, long, default_value = "gpioget")]
-        consumer: String,
-
-        /// GPIO chip
-        #[structopt()]
-        chip: std::path::PathBuf,
-
-        /// GPIO lines
-        #[structopt()]
-        lines: Vec<gpiod::LineId>,
-    },
-
-    /// Set values into GPIO lines
-    Set {
-        /// Input bias
-        #[structopt(short, long, default_value = "disable")]
-        bias: gpiod::Bias,
-
-        /// Active state
-        #[structopt(short, long, default_value = "high")]
-        active: gpiod::Active,
-
-        /// Output drive
-        #[structopt(short, long, default_value = "push-pull")]
-        drive: gpiod::Drive,
-
-        /// Consumer string
-        #[structopt(short, long, default_value = "gpioset")]
-        consumer: String,
-
-        /// GPIO chip
-        #[structopt()]
-        chip: std::path::PathBuf,
-
-        /// GPIO line-value pairs
-        #[structopt()]
-        line_values: Vec<LineValue>,
-    },
-
-    /// Monitor values on GPIO lines
-    Mon {
-        /// Input bias
-        #[structopt(short, long, default_value = "disable")]
-        bias: gpiod::Bias,
-
-        /// Active state
-        #[structopt(short, long, default_value = "high")]
-        active: gpiod::Active,
-
-        /// Edge to detect
-        #[structopt(short, long, default_value = "both")]
-        edge: gpiod::EdgeDetect,
-
-        /// Consumer string
-        #[structopt(short, long, default_value = "gpiomon")]
-        consumer: String,
-
-        /// GPIO chip
-        #[structopt()]
-        chip: std::path::PathBuf,
-
-        /// GPIO lines
-        #[structopt()]
-        lines: Vec<gpiod::LineId>,
-    },
-}
-
-struct LineValue {
-    line: gpiod::LineId,
-    value: bool,
-}
-
-impl std::str::FromStr for LineValue {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> anyhow::Result<Self> {
-        let (k, v) = s
-            .split_once('=')
-            .ok_or_else(|| anyhow::anyhow!("Key-value pair expected (line=value)"))?;
-        let line = k
-            .parse()
-            .map_err(|_| anyhow::anyhow!("Invalid line offset"))?;
-        let value = match v.trim() {
-            "0" | "off" | "false" => false,
-            "1" | "on" | "true" => true,
-            _ => anyhow::bail!("Invalid line value"),
-        };
-        Ok(Self { line, value })
-    }
-}
-
-#[paw::main]
-fn main(cmds: Cmds) -> anyhow::Result<()> {
-    match cmds {
-        Cmds::Detect => {
+    match args.cmd {
+        Cmd::Detect => {
             let chips = gpiod::Chip::list_devices()?
                 .into_iter()
                 .map(gpiod::Chip::new)
@@ -127,7 +18,7 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
                 .for_each(|f| println!("{}", f));
         }
 
-        Cmds::Info { chip } => {
+        Cmd::Info { chip } => {
             let chips = gpiod::Chip::list_devices()?
                 .into_iter()
                 .filter(|path| {
@@ -145,23 +36,19 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
                 let chip = &chips[index];
                 println!("{}", chip);
                 for line in 0..chip.num_lines() {
-                    let line_info = chip.line_info(line).unwrap();
+                    let line_info = chip.line_info(line)?;
                     println!("\t line \t {}: \t {}", line, line_info);
                 }
             }
         }
 
-        Cmds::Get {
+        Cmd::Get {
             bias,
             active,
             consumer,
             chip,
             lines,
         } => {
-            if lines.len() > gpiod::MAX_VALUES {
-                anyhow::bail!("Too many lines");
-            }
-
             let chip = gpiod::Chip::new(&chip)?;
 
             let input = chip.request_lines(
@@ -181,7 +68,7 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
             println!();
         }
 
-        Cmds::Set {
+        Cmd::Set {
             bias,
             active,
             drive,
@@ -189,10 +76,6 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
             chip,
             line_values,
         } => {
-            if line_values.len() > gpiod::MAX_VALUES {
-                anyhow::bail!("Too many lines");
-            }
-
             let chip = gpiod::Chip::new(&chip)?;
 
             let (lines, values): (Vec<_>, Vec<_>) = line_values
@@ -218,7 +101,7 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
             println!();
         }
 
-        Cmds::Mon {
+        Cmd::Mon {
             edge,
             bias,
             active,
@@ -226,10 +109,6 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
             chip,
             lines,
         } => {
-            if lines.len() > gpiod::MAX_VALUES {
-                anyhow::bail!("Too many lines");
-            }
-
             let chip = gpiod::Chip::new(&chip)?;
 
             let input = chip.request_lines(
@@ -247,6 +126,13 @@ fn main(cmds: Cmds) -> anyhow::Result<()> {
                     lines[event.line as usize], event.edge, event.time,
                 );
             }
+        }
+
+        #[cfg(feature = "complete")]
+        Cmd::Complete { shell } => {
+            let mut cmd = <Args as clap::CommandFactory>::command();
+            let name = cmd.get_name().to_string();
+            clap_complete::generate(shell, &mut cmd, name, &mut std::io::stdout());
         }
     }
 

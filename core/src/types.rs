@@ -41,6 +41,7 @@ impl LineMap {
 }
 
 /// The information of a specific GPIO line
+#[derive(Debug, Clone)]
 pub struct LineInfo {
     /// GPIO line direction
     pub direction: Direction,
@@ -101,11 +102,14 @@ impl fmt::Display for LineInfo {
 
 /// Direction of a GPIO line
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
 #[repr(u8)]
 pub enum Direction {
     /// Line acts as input (default)
+    #[cfg_attr(feature = "clap", clap(aliases = ["i", "in"]))]
     Input,
     /// Line acts as output
+    #[cfg_attr(feature = "clap", clap(aliases = ["o", "out"]))]
     Output,
 }
 
@@ -149,11 +153,14 @@ impl str::FromStr for Direction {
 ///
 /// Also this may be treated as polarity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
 #[repr(u8)]
 pub enum Active {
     /// Active level is low
+    #[cfg_attr(feature = "clap", clap(aliases = ["l", "lo"]))]
     Low,
     /// Active level is high (default)
+    #[cfg_attr(feature = "clap", clap(aliases = ["h", "hi"]))]
     High,
 }
 
@@ -251,15 +258,20 @@ impl fmt::Display for Event {
 
 /// Edge detection setting for GPIO line
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
 #[repr(u8)]
 pub enum EdgeDetect {
     /// Detection disabled (default)
+    #[cfg_attr(feature = "clap", clap(aliases = ["d", "dis"]))]
     Disable,
     /// Detect rising edge only
+    #[cfg_attr(feature = "clap", clap(aliases = ["r", "rise"]))]
     Rising,
     /// Detect falling edge only
+    #[cfg_attr(feature = "clap", clap(aliases = ["f", "fall"]))]
     Falling,
     /// Detect both rising and falling edges
+    #[cfg_attr(feature = "clap", clap(aliases = ["b"]))]
     Both,
 }
 
@@ -291,7 +303,7 @@ impl str::FromStr for EdgeDetect {
 
     fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
-            "d" | "disable" => Self::Disable,
+            "d" | "dis" | "disable" => Self::Disable,
             "r" | "rise" | "rising" => Self::Rising,
             "f" | "fall" | "falling" => Self::Falling,
             "b" | "both" | "rise-fall" | "rising-falling" => Self::Both,
@@ -305,13 +317,17 @@ impl str::FromStr for EdgeDetect {
 /// Sometimes GPIO lines shall be pulled to up (power rail) or down (ground)
 /// through resistor to avoid floating level on it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
 #[repr(u8)]
 pub enum Bias {
     /// Disabled bias (default)
+    #[cfg_attr(feature = "clap", clap(aliases = ["d", "dis"]))]
     Disable,
     /// Pull line up
+    #[cfg_attr(feature = "clap", clap(aliases = ["pu"]))]
     PullUp,
     /// Pull line down
+    #[cfg_attr(feature = "clap", clap(aliases = ["pd"]))]
     PullDown,
 }
 
@@ -342,7 +358,7 @@ impl str::FromStr for Bias {
 
     fn from_str(s: &str) -> Result<Self> {
         Ok(match s {
-            "d" | "disable" => Self::Disable,
+            "d" | "dis" | "disable" => Self::Disable,
             "pu" | "pull-up" => Self::PullUp,
             "pd" | "pull-down" => Self::PullUp,
             _ => return Err(invalid_input("Not recognized input bias")),
@@ -354,13 +370,17 @@ impl str::FromStr for Bias {
 ///
 /// Usually GPIO lines configured as push-pull but sometimes it required to drive via open drain or source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
 #[repr(u8)]
 pub enum Drive {
     /// Drive push-pull (default)
+    #[cfg_attr(feature = "clap", clap(aliases = ["pp"]))]
     PushPull,
     /// Drive with open-drain
+    #[cfg_attr(feature = "clap", clap(aliases = ["od"]))]
     OpenDrain,
     /// Drive with open-source
+    #[cfg_attr(feature = "clap", clap(aliases = ["os"]))]
     OpenSource,
 }
 

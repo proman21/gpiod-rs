@@ -1,0 +1,154 @@
+#[derive(clap::Parser)]
+#[clap(
+    name = "gpio",
+    version,
+    about,
+    propagate_version = true,
+    // Command::trailing_var_ar is required to use ValueHint::CommandWithArguments
+    trailing_var_arg = true,
+)]
+pub struct Args {
+    #[clap(subcommand)]
+    pub cmd: Cmd,
+}
+
+/*fn list_chips() -> Vec<String> {
+    static mut CHIPS: Option<Vec<String>> = None;
+    static INIT: std::sync::Once = std::sync::Once::new();
+
+    unsafe {
+        INIT.call_once(|| {
+            CHIPS = Some(
+                gpiod::Chip::list_devices()
+                    .unwrap()
+                    .into_iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>(),
+            );
+        });
+        CHIPS.unwrap()
+    }
+}*/
+
+#[derive(clap::Subcommand)]
+pub enum Cmd {
+    /// List GPIO devices
+    Detect,
+
+    /// Get info about GPIO devices
+    Info {
+        /// GPIO chip paths or names (ex. gpiochip0)
+        #[clap(value_parser)]
+        chip: Vec<String>,
+    },
+
+    /// Get values from GPIO lines
+    Get {
+        /// Input bias
+        #[clap(short, long, arg_enum, default_value = "disable")]
+        bias: gpiod::Bias,
+
+        /// Active state
+        #[clap(short, long, arg_enum, default_value = "high")]
+        active: gpiod::Active,
+
+        /// Consumer string
+        #[clap(short, long, value_parser, default_value = "gpioget")]
+        consumer: String,
+
+        /// GPIO chip path or name (ex. gpiochip0)
+        #[clap(value_parser)]
+        chip: std::path::PathBuf,
+
+        /// GPIO lines (ex. 0 11)
+        #[clap(value_parser, required = true, max_values = gpiod::MAX_VALUES)]
+        lines: Vec<gpiod::LineId>,
+    },
+
+    /// Set values into GPIO lines
+    Set {
+        /// Input bias
+        #[clap(short, long, arg_enum, default_value = "disable")]
+        bias: gpiod::Bias,
+
+        /// Active state
+        #[clap(short, long, arg_enum, default_value = "high")]
+        active: gpiod::Active,
+
+        /// Output drive
+        #[clap(short, long, arg_enum, default_value = "push-pull")]
+        drive: gpiod::Drive,
+
+        /// Consumer string
+        #[clap(short, long, value_parser, default_value = "gpioset")]
+        consumer: String,
+
+        /// GPIO chip path or name (ex. gpiochip0)
+        #[clap(value_parser)]
+        chip: std::path::PathBuf,
+
+        /// GPIO line-value pairs (ex. 0=1 11=0)
+        #[clap(value_parser, required = true, max_values = gpiod::MAX_VALUES)]
+        line_values: Vec<LineValue>,
+    },
+
+    /// Monitor values on GPIO lines
+    Mon {
+        /// Input bias
+        #[clap(short, long, arg_enum, default_value = "disable")]
+        bias: gpiod::Bias,
+
+        /// Active state
+        #[clap(short, long, arg_enum, default_value = "high")]
+        active: gpiod::Active,
+
+        /// Edge to detect
+        #[clap(short, long, arg_enum, default_value = "both")]
+        edge: gpiod::EdgeDetect,
+
+        /// Consumer string
+        #[clap(short, long, value_parser, default_value = "gpiomon")]
+        consumer: String,
+
+        /// GPIO chip path or name (ex. gpiochip0)
+        #[clap(value_parser)]
+        chip: std::path::PathBuf,
+
+        /// GPIO lines (ex. 0 11)
+        #[clap(value_parser, required = true, max_values = gpiod::MAX_VALUES)]
+        lines: Vec<gpiod::LineId>,
+    },
+
+    #[cfg(feature = "complete")]
+    /// Generate autocompletion
+    Complete {
+        /// Shell name
+        #[clap(short, long, arg_enum, value_parser, default_value = "bash")]
+        shell: clap_complete::Shell,
+    },
+}
+
+#[derive(Clone)]
+pub struct LineValue {
+    pub line: gpiod::LineId,
+    pub value: bool,
+}
+
+impl std::str::FromStr for LineValue {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        let (k, v) = s
+            .split_once('=')
+            .ok_or_else(|| anyhow::anyhow!("Key-value pair expected (line=value)"))?;
+        let line = k
+            .parse()
+            .map_err(|_| anyhow::anyhow!("Invalid line offset"))?;
+        let value = match v.trim() {
+            "0" | "off" | "false" => false,
+            "1" | "on" | "true" => true,
+            _ => anyhow::bail!("Invalid line value"),
+        };
+        Ok(Self { line, value })
+    }
+}

@@ -2,7 +2,7 @@
 name = "gpiod-cli"
 description = "Linux GPIO character device interfacing (utils)"
 version = "0.2.0"
-authors = ["Joao Rebelo <2730147+jrebelo@users.noreply.github.com>", "K. <kayo@illumium.org>"]
+authors = ["K. <kayo@illumium.org>"]
 license = "MIT"
 readme = "README.md"
 categories = ["command-line-utilities"]
@@ -16,17 +16,44 @@ path = "src/main.rs"
 [dependencies.gpiod]
 path = ".."
 default-features = false
+features = ["clap"]
 
 [dependencies.anyhow]
 version = "1"
 
-[dependencies.paw]
-version = "1"
+[dependencies.clap]
+version = "3"
+features = ["std", "derive"]
 
-[dependencies.structopt]
-version = "0.3"
-features = ["paw"]
+[dependencies.clap_complete]
+version = "3"
+optional = true
+
+[build-dependencies.anyhow]
+version = "1"
+optional = true
+
+[build-dependencies.gpiod]
+path = ".."
+default-features = false
+features = ["clap"]
+optional = true
+
+[build-dependencies.clap]
+version = "3"
+features = ["std", "derive"]
+optional = true
+
+[build-dependencies.clap_mangen]
+version = "0.1"
+optional = true
+
+[build-dependencies.clap_complete]
+version = "3"
+optional = true
 
 [features]
-default = ["v2"]
+default = ["v2", "man", "complete"]
 v2 = ["gpiod/v2"]
+man = ["anyhow", "gpiod", "clap", "clap_mangen"]
+complete = ["clap_complete"]

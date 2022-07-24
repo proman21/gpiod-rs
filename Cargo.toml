@@ -20,3 +20,4 @@ default-features = false
 [features]
 default = ["v2"]
 v2 = ["gpiod-core/v2"]
+clap = ["gpiod-core/clap"]
