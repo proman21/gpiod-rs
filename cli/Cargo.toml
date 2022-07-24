@@ -10,27 +10,7 @@ keywords = ["libgpiod", "GPIO", "Linux", "chardev", "ioctl"]
 edition = "2021"
 
 [[bin]]
-name = "gpiodetect-rs"
-path = "src/detect.rs"
-
-[[bin]]
-name = "gpioinfo-rs"
-path = "src/info.rs"
-
-[[bin]]
-name = "gpioget-rs"
-path = "src/get.rs"
-
-[[bin]]
-name = "gpioset-rs"
-path = "src/set.rs"
-
-[[bin]]
-name = "gpiomon-rs"
-path = "src/mon.rs"
-
-[[bin]]
-name = "gpio-rs"
+name = "gpio"
 path = "src/main.rs"
 
 [dependencies.gpiod]
