@@ -23,6 +23,7 @@ path = "src/async_std_main.rs"
 
 [dependencies.gpiod]
 path = ".."
+version = "0.2.0"
 default-features = false
 features = ["clap"]
 
@@ -38,6 +39,7 @@ version = "0.3"
 
 [dependencies.tokio-gpiod]
 path = "../tokio"
+version = "0.2.0"
 default-features = false
 features = ["clap"]
 
@@ -47,6 +49,7 @@ features = ["rt-multi-thread", "macros"]
 
 [dependencies.async-std-gpiod]
 path = "../async-std"
+version = "0.2.0"
 default-features = false
 features = ["clap"]
 
@@ -64,6 +67,7 @@ optional = true
 
 [build-dependencies.gpiod]
 path = ".."
+version = "0.2.0"
 default-features = false
 features = ["clap"]
 optional = true
