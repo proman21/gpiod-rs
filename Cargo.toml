@@ -21,3 +21,4 @@ default-features = false
 default = ["v2"]
 v2 = ["gpiod-core/v2"]
 clap = ["gpiod-core/clap"]
+serde = ["gpiod-core/serde"]

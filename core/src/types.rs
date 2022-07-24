@@ -42,6 +42,7 @@ impl LineMap {
 
 /// The information of a specific GPIO line
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LineInfo {
     /// GPIO line direction
     pub direction: Direction,
@@ -103,6 +104,7 @@ impl fmt::Display for LineInfo {
 /// Direction of a GPIO line
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub enum Direction {
     /// Line acts as input (default)
@@ -154,6 +156,7 @@ impl str::FromStr for Direction {
 /// Also this may be treated as polarity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub enum Active {
     /// Active level is low
@@ -199,6 +202,7 @@ impl str::FromStr for Active {
 
 /// Signal edge or level transition of a GPIO line
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub enum Edge {
     /// Rising edge detected
@@ -236,6 +240,7 @@ impl str::FromStr for Edge {
 
 /// Signal edge detection event
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Event {
     /// GPIO line where edge detected
     pub line: BitId,
@@ -259,6 +264,7 @@ impl fmt::Display for Event {
 /// Edge detection setting for GPIO line
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(u8)]
 pub enum EdgeDetect {
     /// Detection disabled (default)
@@ -318,6 +324,8 @@ impl str::FromStr for EdgeDetect {
 /// through resistor to avoid floating level on it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 #[repr(u8)]
 pub enum Bias {
     /// Disabled bias (default)
@@ -371,6 +379,8 @@ impl str::FromStr for Bias {
 /// Usually GPIO lines configured as push-pull but sometimes it required to drive via open drain or source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 #[repr(u8)]
 pub enum Drive {
     /// Drive push-pull (default)

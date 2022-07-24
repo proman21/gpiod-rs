@@ -20,6 +20,12 @@ default-features = false
 features = ["std", "derive"]
 optional = true
 
+[dependencies.serde]
+version = "1"
+default-features = false
+features = ["std", "derive"]
+optional = true
+
 [features]
 default = ["v2"]
 v2 = []
