@@ -1,9 +1,7 @@
-mod args;
-
 #[async_std::main]
 async fn main() -> anyhow::Result<()> {
-    use args::{Args, Cmd};
     use async_std_gpiod as gpiod;
+    use gpiod_cli::{Args, Cmd};
 
     let args: Args = clap::Parser::parse();
 

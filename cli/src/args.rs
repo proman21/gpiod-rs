@@ -8,6 +8,7 @@
     trailing_var_arg = true,
 )]
 pub struct Args {
+    /// GPIO commands
     #[clap(subcommand)]
     pub cmd: Cmd,
 }

@@ -1,0 +1,50 @@
+[package]
+name = "async-std-gpiod-cli"
+description = "Linux GPIO character device interfacing (utils)"
+version = "0.2.0"
+authors = ["K. <kayo@illumium.org>"]
+license = "MIT"
+readme = "README.md"
+categories = ["command-line-utilities"]
+keywords = ["libgpiod", "GPIO", "Linux", "chardev", "ioctl"]
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "agpio"
+path = "src/main.rs"
+
+[dependencies.async-std-gpiod]
+path = "../../async-std"
+version = "0.2.0"
+default-features = false
+features = ["clap"]
+
+[dependencies.gpiod-cli]
+path = ".."
+version = "0.2.0"
+default-features = false
+features = ["clap"]
+
+[dependencies.anyhow]
+version = "1"
+
+[dependencies.clap]
+version = "3"
+features = ["std", "derive"]
+
+[dependencies.futures]
+version = "0.3"
+
+[dependencies.async-std]
+version = "1"
+features = ["attributes"]
+
+[dependencies.clap_complete]
+version = "3"
+optional = true
+
+[features]
+default = ["v2", "complete"]
+v2 = ["async-std-gpiod/v2", "gpiod-cli/v2"]
+complete = ["clap_complete", "gpiod-cli/complete"]

@@ -1,8 +1,6 @@
-mod args;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    use args::{Args, Cmd};
+    use gpiod_cli::{Args, Cmd};
     use tokio_gpiod as gpiod;
 
     let args: Args = clap::Parser::parse();

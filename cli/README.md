@@ -33,7 +33,7 @@ Sysfs-based API (< 4.0) does not supported.
 ## Usage examples
 
 Detect chips:
-```
+```sh
 $ gpio detect
 gpiochip0 [pinctrl-bcm2711] (58 lines)
 gpiochip1 [raspberrypi-exp-gpio] (8 lines)
@@ -41,7 +41,7 @@ gpiochip2 [ftdi-cbus] (4 lines)
 ```
 
 Get chip info:
-```
+```sh
 $ gpio info gpiochip0
 gpiochip0 [pinctrl-bcm2711] (58 lines)
          line    0:              "ID_SDA"        unused  input   active-high
@@ -105,19 +105,19 @@ gpiochip0 [pinctrl-bcm2711] (58 lines)
 ```
 
 Get line values:
-```
+```sh
 $ gpio get gpiochip0 22 27
 1 0
 ```
 
 Set line values:
-```
+```sh
 $ gpio set gpiochip0 21=1
 1
 ```
 
 Monitor line values:
-```
+```sh
 $ gpio mon gpiochip0 22 27
 line 27: rising-edge [408914.219966626]
 line 27: falling-edge [408914.269983903]

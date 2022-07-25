@@ -8,18 +8,11 @@ readme = "README.md"
 categories = ["command-line-utilities"]
 keywords = ["libgpiod", "GPIO", "Linux", "chardev", "ioctl"]
 edition = "2021"
+publish = false
 
 [[bin]]
 name = "gpio"
 path = "src/main.rs"
-
-[[bin]]
-name = "tgpio"
-path = "src/tokio_main.rs"
-
-[[bin]]
-name = "agpio"
-path = "src/async_std_main.rs"
 
 [dependencies.gpiod]
 path = ".."
@@ -33,29 +26,6 @@ version = "1"
 [dependencies.clap]
 version = "3"
 features = ["std", "derive"]
-
-[dependencies.futures]
-version = "0.3"
-
-[dependencies.tokio-gpiod]
-path = "../tokio"
-version = "0.2.0"
-default-features = false
-features = ["clap"]
-
-[dependencies.tokio]
-version = "1"
-features = ["rt-multi-thread", "macros"]
-
-[dependencies.async-std-gpiod]
-path = "../async-std"
-version = "0.2.0"
-default-features = false
-features = ["clap"]
-
-[dependencies.async-std]
-version = "1"
-features = ["attributes"]
 
 [dependencies.clap_complete]
 version = "3"
@@ -87,6 +57,6 @@ optional = true
 
 [features]
 default = ["v2", "man", "complete"]
-v2 = ["gpiod/v2", "tokio-gpiod/v2", "async-std-gpiod/v2"]
+v2 = ["gpiod/v2"]
 man = ["anyhow", "gpiod", "clap", "clap_mangen"]
 complete = ["clap_complete"]

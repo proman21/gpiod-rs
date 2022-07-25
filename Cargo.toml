@@ -10,7 +10,7 @@ keywords = ["libgpiod", "GPIO", "Linux", "chardev", "ioctl"]
 edition = "2021"
 
 [workspace]
-members = ["core", "cli", "tokio", "async-std"]
+members = ["core", "tokio", "async-std", "cli", "cli/tokio", "cli/async-std"]
 
 [dependencies.gpiod-core]
 path = "core"
