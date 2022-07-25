@@ -2,6 +2,7 @@
 
 use std::{
     fmt,
+    marker::PhantomData,
     ops::Deref,
     os::unix::{
         fs::{FileTypeExt, MetadataExt},
@@ -15,9 +16,9 @@ use std::{
 use gpiod_core::{invalid_input, major, minor, Internal, Result};
 
 pub use gpiod_core::{
-    Active, AsValues, AsValuesMut, Bias, BitId, ChipInfo, Direction, Drive, Edge, EdgeDetect,
-    Event, Input, LineId, LineInfo, Masked, Options, Output, Values, ValuesInfo, MAX_BITS,
-    MAX_VALUES,
+    Active, AsValues, AsValuesMut, Bias, BitId, ChipInfo, Direction, DirectionType, Drive, Edge,
+    EdgeDetect, Event, Input, LineId, LineInfo, Masked, Options, Output, Values, ValuesInfo,
+    MAX_BITS, MAX_VALUES,
 };
 
 use async_io::Async;
@@ -75,45 +76,18 @@ impl Read for File {
     }
 }
 
-#[cfg(not(feature = "v2"))]
-async fn read_event(_index: &gpiod_core::LineMap, _file: &mut File) -> Result<Event> {
-    todo!();
-}
-
-#[cfg(feature = "v2")]
-async fn read_event(index: &gpiod_core::LineMap, file: &mut File) -> Result<Event> {
-    let mut event = gpiod_core::RawEvent::default();
-
-    gpiod_core::check_size(file.read(event.as_mut()).await?, &event)?;
-
-    event.as_event(index)
-}
-
-/// Direction trait
-pub trait DirectionType: gpiod_core::DirectionType {
-    type Lines;
-
-    fn lines(info: Arc<Internal<ValuesInfo>>, file: File) -> Self::Lines;
-}
-
 /// The interface for getting the values of GPIO lines configured for input
 ///
-/// Use [Chip::request_lines] with [Options::input] to configure specific GPIO lines for input.
-pub struct Inputs {
+/// Use [Chip::request_lines] with [Options::input] or [Options::output] to configure specific
+/// GPIO lines for input or output.
+pub struct Lines<Direction> {
+    dir: PhantomData<Direction>,
     info: Arc<Internal<ValuesInfo>>,
     // wrap file to call close on drop
     file: File,
 }
 
-impl DirectionType for Input {
-    type Lines = Inputs;
-
-    fn lines(info: Arc<Internal<ValuesInfo>>, file: File) -> Self::Lines {
-        Self::Lines { info, file }
-    }
-}
-
-impl Deref for Inputs {
+impl<Direction> Deref for Lines<Direction> {
     type Target = ValuesInfo;
 
     fn deref(&self) -> &Self::Target {
@@ -121,59 +95,42 @@ impl Deref for Inputs {
     }
 }
 
-impl Inputs {
+impl<Direction: DirectionType> Lines<Direction> {
     /// Get the value of GPIO lines
     ///
     /// The values can only be read if the lines have previously been requested as inputs
-    /// using the [Chip::request_lines] method with [Options::input].
+    /// or outputs using the [Chip::request_lines] method with [Options::input] or with
+    /// [Options::output].
     pub async fn get_values<T: AsValuesMut + Send + 'static>(&self, mut values: T) -> Result<T> {
         let fd = self.file.as_raw_fd();
         let info = self.info.clone();
         asyncify(move || info.get_values(fd, &mut values).map(|_| values)).await
     }
+}
 
+impl Lines<Input> {
     /// Read GPIO events synchronously
+    ///
+    /// The values can only be read if the lines have previously been requested as inputs
+    /// using the [Chip::request_lines] method with [Options::input].
     pub async fn read_event(&mut self) -> Result<Event> {
-        read_event(self.info.index(), &mut self.file).await
+        #[cfg(not(feature = "v2"))]
+        {
+            todo!();
+        }
+
+        #[cfg(feature = "v2")]
+        {
+            let mut event = gpiod_core::RawEvent::default();
+
+            gpiod_core::check_size(self.file.read(event.as_mut()).await?, &event)?;
+
+            event.as_event(self.info.index())
+        }
     }
 }
 
-/// The interface for setting the values of GPIO lines configured for output
-///
-/// Use [Chip::request_lines] with [Options::output] to configure specific GPIO lines for output.
-///
-/// The values also can be read.
-/// Specifically this may be useful to get actual value when lines driven as open drain or source.
-pub struct Outputs {
-    info: Arc<Internal<ValuesInfo>>,
-    // wrap file to call close on drop
-    file: File,
-}
-
-impl DirectionType for Output {
-    type Lines = Outputs;
-
-    fn lines(info: Arc<Internal<ValuesInfo>>, file: File) -> Self::Lines {
-        Self::Lines { info, file }
-    }
-}
-
-impl Deref for Outputs {
-    type Target = ValuesInfo;
-
-    fn deref(&self) -> &Self::Target {
-        &self.info
-    }
-}
-
-impl Outputs {
-    /// Get the value of GPIO lines
-    pub async fn get_values<T: AsValuesMut + Send + 'static>(&self, mut values: T) -> Result<T> {
-        let fd = self.file.as_raw_fd();
-        let info = self.info.clone();
-        asyncify(move || info.get_values(fd, &mut values).map(|_| values)).await
-    }
-
+impl Lines<Output> {
     /// Set the value of GPIO lines
     ///
     /// The value can only be set if the lines have previously been requested as outputs
@@ -294,11 +251,10 @@ impl Chip {
     ///
     /// Calling this operation is a precondition to being able to set the state of the GPIO lines.
     /// All the lines passed in one request must share the configured options such as active state, edge detect, GPIO bias, output drive and consumer string.
-    /// The state of lines configured as outputs can also be read using the [Outputs::get_values] method.
     pub async fn request_lines<Direction: DirectionType>(
         &self,
         options: Options<Direction, impl AsRef<[LineId]>, impl AsRef<str>>,
-    ) -> Result<Direction::Lines> {
+    ) -> Result<Lines<Direction>> {
         let fd = self.file.as_raw_fd();
         let options = options.to_owned();
         let info = self.info.clone();
@@ -308,6 +264,10 @@ impl Chip {
         let file = File::from_fd(fd)?;
         let info = Arc::new(info);
 
-        Ok(Direction::lines(info, file))
+        Ok(Lines {
+            dir: PhantomData,
+            info,
+            file,
+        })
     }
 }
