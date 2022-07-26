@@ -103,8 +103,9 @@ impl fmt::Display for LineInfo {
 
 /// Direction of a GPIO line
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 #[repr(u8)]
 pub enum Direction {
     /// Line acts as input (default)
@@ -155,8 +156,9 @@ impl str::FromStr for Direction {
 ///
 /// Also this may be treated as polarity.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 #[repr(u8)]
 pub enum Active {
     /// Active level is low
@@ -202,12 +204,16 @@ impl str::FromStr for Active {
 
 /// Signal edge or level transition of a GPIO line
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 #[repr(u8)]
 pub enum Edge {
     /// Rising edge detected
+    #[cfg_attr(feature = "clap", clap(aliases = ["r", "rise"]))]
     Rising,
     /// Falling edge detected
+    #[cfg_attr(feature = "clap", clap(aliases = ["f", "fall"]))]
     Falling,
 }
 
@@ -263,8 +269,9 @@ impl fmt::Display for Event {
 
 /// Edge detection setting for GPIO line
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 #[repr(u8)]
 pub enum EdgeDetect {
     /// Detection disabled (default)
@@ -323,7 +330,7 @@ impl str::FromStr for EdgeDetect {
 /// Sometimes GPIO lines shall be pulled to up (power rail) or down (ground)
 /// through resistor to avoid floating level on it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 #[repr(u8)]
@@ -378,7 +385,7 @@ impl str::FromStr for Bias {
 ///
 /// Usually GPIO lines configured as push-pull but sometimes it required to drive via open drain or source.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "clap", derive(clap::ArgEnum))]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "kebab-case"))]
 #[repr(u8)]
