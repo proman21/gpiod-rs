@@ -86,3 +86,16 @@ pub fn minor(dev: u64) -> u64 {
     minor |= (dev & 0x00000ffffff00000) >> 12;
     minor
 }
+
+/// Set non-block flag to fd
+pub fn set_nonblock(fd: std::os::unix::io::RawFd) -> Result<()> {
+    use nix::fcntl::{fcntl, FcntlArg, OFlag};
+
+    let mut flags = OFlag::from_bits_truncate(fcntl(fd, FcntlArg::F_GETFL)?);
+
+    flags.insert(OFlag::O_NONBLOCK);
+
+    fcntl(fd, FcntlArg::F_SETFL(flags))?;
+
+    Ok(())
+}

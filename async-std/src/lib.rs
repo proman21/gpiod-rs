@@ -13,7 +13,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use gpiod_core::{invalid_input, major, minor, Internal, Result};
+use gpiod_core::{invalid_input, major, minor, set_nonblock, Internal, Result};
 
 pub use gpiod_core::{
     Active, AsValues, AsValuesMut, Bias, BitId, ChipInfo, Direction, DirectionType, Drive, Edge,
@@ -259,7 +259,12 @@ impl Chip {
         let options = options.to_owned();
         let info = self.info.clone();
 
-        let (info, fd) = asyncify(move || info.request_lines(fd, options)).await?;
+        let (info, fd) = asyncify(move || -> Result<_> {
+            let (info, fd) = info.request_lines(fd, options)?;
+            set_nonblock(fd)?;
+            Ok((info, fd))
+        })
+        .await?;
 
         let file = File::from_fd(fd)?;
         let info = Arc::new(info);

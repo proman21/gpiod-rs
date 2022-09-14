@@ -12,7 +12,7 @@ edition = "2021"
 [dependencies.nix]
 version = "0.24"
 default-features = false
-features = ["ioctl"]
+features = ["ioctl", "fs"]
 
 [dependencies.clap]
 version = "3"
