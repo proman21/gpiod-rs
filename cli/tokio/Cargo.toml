@@ -1,7 +1,7 @@
 [package]
 name = "tokio-gpiod-cli"
 description = "Linux GPIO character device interfacing (utils)"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["K. <kayo@illumium.org>"]
 license = "MIT"
 readme = "README.md"
@@ -16,13 +16,13 @@ path = "src/main.rs"
 
 [dependencies.tokio-gpiod]
 path = "../../tokio"
-version = "0.2.1"
+version = "0.2.2"
 default-features = false
 features = ["clap"]
 
 [dependencies.gpiod-cli]
 path = ".."
-version = "0.2.1"
+version = "0.2.2"
 default-features = false
 features = ["clap"]
 
@@ -30,7 +30,7 @@ features = ["clap"]
 version = "1"
 
 [dependencies.clap]
-version = "3"
+version = "4"
 features = ["std", "derive"]
 
 [dependencies.futures]
@@ -41,7 +41,7 @@ version = "1"
 features = ["rt-multi-thread", "macros"]
 
 [dependencies.clap_complete]
-version = "3"
+version = "4"
 optional = true
 
 [features]

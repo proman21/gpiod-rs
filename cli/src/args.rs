@@ -1,5 +1,5 @@
 #[derive(clap::Parser)]
-#[clap(
+#[command(
     name = "gpio",
     version,
     about,
@@ -31,7 +31,7 @@ pub struct Args {
     }
 }*/
 
-#[derive(clap::Subcommand)]
+#[derive(clap::Parser)]
 pub enum Cmd {
     /// List GPIO devices
     Detect,
@@ -39,84 +39,84 @@ pub enum Cmd {
     /// Get info about GPIO devices
     Info {
         /// GPIO chip paths or names (ex. gpiochip0)
-        #[clap(value_parser)]
+        #[arg(value_parser)]
         chip: Vec<String>,
     },
 
     /// Get values from GPIO lines
     Get {
         /// Input bias
-        #[clap(short, long, arg_enum, default_value = "disable")]
+        #[arg(short, long, value_enum, default_value = "disable")]
         bias: gpiod::Bias,
 
         /// Active state
-        #[clap(short, long, arg_enum, default_value = "high")]
+        #[arg(short, long, value_enum, default_value = "high")]
         active: gpiod::Active,
 
         /// Consumer string
-        #[clap(short, long, value_parser, default_value = "gpioget")]
+        #[arg(short, long, value_parser, default_value = "gpioget")]
         consumer: String,
 
         /// GPIO chip path or name (ex. gpiochip0)
-        #[clap(value_parser)]
+        #[arg(value_parser)]
         chip: std::path::PathBuf,
 
         /// GPIO lines (ex. 0 11)
-        #[clap(value_parser, required = true, max_values = gpiod::MAX_VALUES)]
+        #[arg(value_parser, required = true, num_args = ..=gpiod::MAX_VALUES)]
         lines: Vec<gpiod::LineId>,
     },
 
     /// Set values into GPIO lines
     Set {
         /// Input bias
-        #[clap(short, long, arg_enum, default_value = "disable")]
+        #[arg(short, long, value_enum, default_value = "disable")]
         bias: gpiod::Bias,
 
         /// Active state
-        #[clap(short, long, arg_enum, default_value = "high")]
+        #[arg(short, long, value_enum, default_value = "high")]
         active: gpiod::Active,
 
         /// Output drive
-        #[clap(short, long, arg_enum, default_value = "push-pull")]
+        #[arg(short, long, value_enum, default_value = "push-pull")]
         drive: gpiod::Drive,
 
         /// Consumer string
-        #[clap(short, long, value_parser, default_value = "gpioset")]
+        #[arg(short, long, value_parser, default_value = "gpioset")]
         consumer: String,
 
         /// GPIO chip path or name (ex. gpiochip0)
-        #[clap(value_parser)]
+        #[arg(value_parser)]
         chip: std::path::PathBuf,
 
         /// GPIO line-value pairs (ex. 0=1 11=0)
-        #[clap(value_parser, required = true, max_values = gpiod::MAX_VALUES)]
+        #[arg(value_parser, required = true, num_args = ..=gpiod::MAX_VALUES)]
         line_values: Vec<LineValue>,
     },
 
     /// Monitor values on GPIO lines
     Mon {
         /// Input bias
-        #[clap(short, long, arg_enum, default_value = "disable")]
+        #[arg(short, long, value_enum, default_value = "disable")]
         bias: gpiod::Bias,
 
         /// Active state
-        #[clap(short, long, arg_enum, default_value = "high")]
+        #[arg(short, long, value_enum, default_value = "high")]
         active: gpiod::Active,
 
         /// Edge to detect
-        #[clap(short, long, arg_enum, default_value = "both")]
+        #[arg(short, long, value_enum, default_value = "both")]
         edge: gpiod::EdgeDetect,
 
         /// Consumer string
-        #[clap(short, long, value_parser, default_value = "gpiomon")]
+        #[arg(short, long, value_parser, default_value = "gpiomon")]
         consumer: String,
 
         /// GPIO chip path or name (ex. gpiochip0)
-        #[clap(value_parser)]
+        #[arg(value_parser)]
         chip: std::path::PathBuf,
 
         /// GPIO lines (ex. 0 11)
-        #[clap(value_parser, required = true, max_values = gpiod::MAX_VALUES)]
+        #[arg(value_parser, required = true, num_args = ..=gpiod::MAX_VALUES)]
         lines: Vec<gpiod::LineId>,
     },
 
@@ -124,7 +124,7 @@ pub enum Cmd {
     /// Generate autocompletion
     Complete {
         /// Shell name
-        #[clap(short, long, arg_enum, value_parser, default_value = "bash")]
+        #[arg(short, long, value_enum, value_parser, default_value = "bash")]
         shell: clap_complete::Shell,
     },
 }
