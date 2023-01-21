@@ -2,7 +2,7 @@
 
 [![github](https://img.shields.io/badge/github-katyo/gpiod--rs-8da0cb.svg?style=for-the-badge&logo=github)](https://github.com/katyo/gpiod-rs)
 [![MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![CI](https://img.shields.io/github/workflow/status/katyo/gpiod-rs/Rust?style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/katyo/gpiod-rs/actions?query=workflow%3ARust)
+[![CI](https://img.shields.io/github/actions/workflow/status/katyo/gpiod-rs/ci.yml?branch=master&style=for-the-badge&logo=github-actions&logoColor=white)](https://github.com/katyo/gpiod-rs/actions?query=workflow%3ARust)
 
 Rust crate for interfacing with Linux GPIO character devices.
 This crate contains command-line tools based on gpiod library:
