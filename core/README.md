@@ -16,8 +16,8 @@ Since all functionality is dependent on Linux function calls, this crate only co
 
 ## ABI compatibility
 
-Both v1 (>= 4.0) and v2 (>= v5.10) ABI currently supported but edge detection implemented for v2 only.
-Sysfs-based API (< 4.0) does not supported.
+Both ABI v1 (linux >= 4.0) and v2 (linux >= v5.10) supported but edge detection implemented for v2 only.
+Deprecated sysfs-based API (linux < 4.0) currently is not supported at all.
 
 ## Crates
 
