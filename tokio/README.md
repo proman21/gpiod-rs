@@ -32,7 +32,7 @@ Deprecated sysfs-based API (linux < 4.0) currently is not supported at all.
 
 Input values:
 
-```no_run
+```rust,no_run
 use tokio_gpiod::{Chip, Options};
 
 #[tokio::main]
@@ -54,7 +54,7 @@ async fn main() -> std::io::Result<()> {
 
 Output values:
 
-```no_run
+```rust,no_run
 use tokio_gpiod::{Chip, Options};
 
 #[tokio::main]
@@ -75,7 +75,7 @@ async fn main() -> std::io::Result<()> {
 
 Monitor values:
 
-```no_run
+```rust,no_run
 use tokio_gpiod::{Chip, Options, EdgeDetect};
 
 #[tokio::main]

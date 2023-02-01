@@ -32,7 +32,7 @@ Deprecated sysfs-based API (linux < 4.0) currently is not supported at all.
 
 Input values:
 
-```no_run
+```rust,no_run
 use async_std_gpiod::{Chip, Options};
 
 #[async_std::main]
@@ -54,7 +54,7 @@ async fn main() -> std::io::Result<()> {
 
 Output values:
 
-```no_run
+```rust,no_run
 use async_std_gpiod::{Chip, Options};
 
 #[async_std::main]
@@ -75,7 +75,7 @@ async fn main() -> std::io::Result<()> {
 
 Monitor values:
 
-```no_run
+```rust,no_run
 use async_std_gpiod::{Chip, Options, EdgeDetect};
 
 #[async_std::main]
