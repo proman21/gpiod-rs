@@ -8,10 +8,10 @@ use std::{
     io::Read,
     marker::PhantomData,
     ops::Deref,
-    os::unix::{
+    os::{unix::{
         fs::{FileTypeExt, MetadataExt},
         io::{AsRawFd, FromRawFd},
-    },
+    }, fd::RawFd},
     path::{Path, PathBuf},
 };
 
@@ -39,6 +39,12 @@ impl<Direction> Deref for Lines<Direction> {
 
     fn deref(&self) -> &Self::Target {
         &self.info
+    }
+}
+
+impl<Direction> AsRawFd for Lines<Direction> {
+    fn as_raw_fd(&self) -> RawFd {
+        self.file.as_raw_fd()
     }
 }
 
